@@ -24,7 +24,7 @@ Specifically, the Extension itself does **not**:
 - Use cookies or similar tracking technologies for analytics
 - Track your behavior across websites for marketing or profiling
 - Perform any analytics or user tracking on our behalf
-- Store your translated text or selections on external servers or in extension storage
+- Store your translated text or selections on external servers or in extension storage, except for notes you explicitly save (stored locally in your browser)
 
 The Extension operates as a client-side tool that facilitates access to third-party translation services selected by you.
 
@@ -34,12 +34,14 @@ The Extension operates as a client-side tool that facilitates access to third-pa
 The Extension stores the following data **locally in your browser** using chrome.storage:
 - **User preferences**: Source language, target languages, translation provider choice
 - **Translation history**: Recently used language pairs (source, target, provider, timestamp) for quick access; no selected text is stored
+- **Notes and bookmarks**: Saved words/phrases, optional translations, tags, and source URLs (stored locally in chrome.storage.local)
 - **Options**: Tab behavior (new tab vs. current tab), preview settings, theme preference
 - **Menu configuration**: Your saved target language list
 
 ### Data Storage Location
-- All settings and history are stored **only in your browser's local storage** (chrome.storage.sync)
-- This data can sync across your devices if you're signed into Chrome/Edge with sync enabled
+- Settings and history are stored in chrome.storage.sync
+- Notes are stored in chrome.storage.local on this device
+- Sync data can sync across your devices if you're signed into Chrome/Edge with sync enabled
 - We have no servers, no databases, and no access to any information stored by the Extension
 - You can clear this data at any time by removing the Extension or clearing browser data
 
@@ -67,12 +69,12 @@ When you select these providers, the Extension opens their website in a browser 
 #### Preview Translation API
 - **MyMemory API** (api.mymemory.translated.net)
 
-When preview mode is enabled (optional), the Extension sends selected text to MyMemory API for quick translation preview. This is a third-party service, and their privacy policy applies.
+When preview mode or note auto-translate is enabled (optional), the Extension sends selected text to MyMemory API for quick translation preview or note translation. This is a third-party service, and their privacy policy applies.
 
 ### Third-Party Data Sharing
 The Extension **only** shares data with third parties when:
 - You explicitly trigger a translation (selected text or page URL is sent to your chosen provider)
-- Preview mode is enabled and you select text (sent to MyMemory API)
+- Preview mode is enabled or note auto-translate is enabled when you save a note (sent to MyMemory API)
 
 **Important Notes:**
 - The Extension does not control third-party services' data handling practices
@@ -103,8 +105,8 @@ Right-click Translate requests the following browser permissions to provide its 
 - **Privacy**: Does not access browsing history or tab contents
 
 ### Storage Permission
-- **Purpose**: Save your preferences, target languages, and translation history locally
-- **Data**: Settings, language preferences, usage history
+- **Purpose**: Save your preferences, target languages, translation history, and saved notes locally
+- **Data**: Settings, language preferences, usage history, saved notes
 - **Privacy**: All data remains in browser storage; nothing is transmitted to external servers
 
 ### Scripting + ActiveTab Permissions
@@ -134,8 +136,8 @@ The Extension shares data **only** with third-party translation services and **o
 - **Source and target languages**: Your selected language pair
 - **Browser information**: Standard HTTP headers sent by your browser (user agent, etc.)
 
-### Shared with MyMemory API (Preview Mode)
-When preview mode is enabled:
+### Shared with MyMemory API (Preview and Notes)
+When preview mode or note auto-translate is enabled:
 - **Selected text**: Sent to MyMemory for quick translation
 - **Language pair**: Source and target languages
 
@@ -153,6 +155,7 @@ You have complete control over the Extension and your locally stored data:
 - **Disable Preview**: Turn off preview mode to avoid MyMemory API requests
 - **Choose Providers**: Select which translation service to use
 - **Clear History**: Clear translation history from Extension settings using the Clear history button
+- **Clear Notes**: Remove saved notes from Extension settings using the Clear notes button
 - **Manage Languages**: Add or remove target languages from the menu
 - **Keyboard Shortcuts**: Customize or disable the translation shortcut
 
@@ -219,4 +222,4 @@ If you have any questions or concerns about this Privacy Policy or the Extension
 
 ---
 
-**Summary**: Right-click Translate is a privacy-respecting browser extension that facilitates access to third-party translation services. The Extension itself collects no personal data and operates no external servers. When you translate text, it is sent directly from your browser to your chosen translation provider (Google, DeepL, Bing, Yandex, Microsoft, or MyMemory), whose privacy policies apply. All Extension settings remain in your browser's local storage under your complete control.
+**Summary**: Right-click Translate is a privacy-respecting browser extension that facilitates access to third-party translation services. The Extension itself collects no personal data and operates no external servers. When you translate text, it is sent directly from your browser to your chosen translation provider (Google, DeepL, Bing, Yandex, Microsoft, or MyMemory), whose privacy policies apply. All Extension settings and saved notes remain in your browser's storage under your complete control.

@@ -8,10 +8,18 @@
 </head>
 <body>
   <main class="card">
-    <h1 data-i18n="optionsHeading">Right-click Translate</h1>
-    <p class="subtitle" data-i18n="optionsSubtitle">
-      Choose how translations should open and set your target language.
-    </p>
+    <header class="hero">
+      <div class="brand">
+        <img src="icons/icon48.png" alt="" class="brand-icon">
+        <div class="brand-text">
+          <h1 data-i18n="optionsHeading">Right-click Translate</h1>
+          <p class="tagline" data-i18n="optionsTagline">Instant translations from the context menu.</p>
+        </div>
+      </div>
+      <p class="subtitle" data-i18n="optionsSubtitle">
+        Choose how translations should open and set your target language.
+      </p>
+    </header>
 
     <form id="options-form">
       <div class="layout two-col">
@@ -88,60 +96,92 @@
       </label>
 
       <div class="chips" id="targetsList"></div>
+      <p class="hint hint-primary" data-i18n="hintPrimaryLanguage">
+        Tip: The first language is used for quick actions and shortcuts.
+      </p>
 
       <div class="layout two-col">
-        <label class="field">
+        <div class="field">
           <span class="label" data-i18n="labelOpenMode">Open translation</span>
-          <select id="openMode" name="openMode" aria-label="Open translation mode" data-i18n-aria="ariaOpenMode">
-            <option value="newTab" data-i18n="openModeNewTab">In a new tab</option>
-            <option value="currentTab" data-i18n="openModeCurrentTab">In the current tab</option>
-          </select>
-        </label>
+          <div class="segmented" role="radiogroup" aria-label="Open translation mode" data-i18n-aria="ariaOpenMode">
+            <label class="segment">
+              <input type="radio" name="openMode" value="newTab">
+              <span data-i18n="openModeNewTab">In a new tab</span>
+            </label>
+            <label class="segment">
+              <input type="radio" name="openMode" value="currentTab">
+              <span data-i18n="openModeCurrentTab">In the current tab</span>
+            </label>
+          </div>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="label" data-i18n="labelTheme">Theme</span>
-          <select id="themeMode" name="themeMode" aria-label="Select theme" data-i18n-aria="ariaTheme">
-            <option value="auto" data-i18n="themeAuto">Auto</option>
-            <option value="light" data-i18n="themeLight">Light</option>
-            <option value="dark" data-i18n="themeDark">Dark</option>
-          </select>
-        </label>
+          <div class="segmented" role="radiogroup" aria-label="Select theme" data-i18n-aria="ariaTheme">
+            <label class="segment">
+              <input type="radio" name="themeMode" value="auto">
+              <span data-i18n="themeAuto">Auto</span>
+            </label>
+            <label class="segment">
+              <input type="radio" name="themeMode" value="light">
+              <span data-i18n="themeLight">Light</span>
+            </label>
+            <label class="segment">
+              <input type="radio" name="themeMode" value="dark">
+              <span data-i18n="themeDark">Dark</span>
+            </label>
+          </div>
+        </div>
       </div>
 
-      <div class="layout two-col">
-        <label class="field">
-          <span class="label" data-i18n="labelMaxMenuLanguages">Max menu languages</span>
-          <input
-            type="number"
-            id="maxMenuLanguages"
-            name="maxMenuLanguages"
-            min="1"
-            max="12"
-            step="1"
-            aria-label="Maximum menu languages"
-            data-i18n-aria="ariaMaxMenuLanguages"
-          />
-          <p class="hint" data-i18n="hintMaxMenuLanguages">
-            Limit how many languages appear in the menu.
-          </p>
-        </label>
-        <label class="field">
-          <span class="label" data-i18n="labelPreviewTextLimit">Preview length (chars)</span>
-          <input
-            type="number"
-            id="previewTextLimit"
-            name="previewTextLimit"
-            min="60"
-            max="500"
-            step="10"
-            aria-label="Preview length in characters"
-            data-i18n-aria="ariaPreviewTextLimit"
-          />
-          <p class="hint" data-i18n="hintPreviewTextLimit">
-            Long selections skip preview requests.
-          </p>
-        </label>
-      </div>
+      <details class="advanced" id="advancedSettings">
+        <summary>
+          <span data-i18n="advancedTitle">Advanced settings</span>
+          <span class="summary-hint" data-i18n="advancedHint">Optional tweaks</span>
+        </summary>
+        <div class="advanced-body">
+          <div class="layout two-col">
+            <div class="field" id="menuLimitField">
+              <span class="label" data-i18n="labelMaxMenuLanguages">Max menu languages</span>
+              <div class="range">
+                <input
+                  type="range"
+                  id="maxMenuLanguages"
+                  name="maxMenuLanguages"
+                  min="1"
+                  max="12"
+                  step="1"
+                  aria-label="Maximum menu languages"
+                  data-i18n-aria="ariaMaxMenuLanguages"
+                />
+                <span class="range-value" id="maxMenuLanguagesValue">6</span>
+              </div>
+              <p class="hint" data-i18n="hintMaxMenuLanguages">
+                Limit how many languages appear in the menu.
+              </p>
+            </div>
+            <div class="field" id="previewField">
+              <span class="label" data-i18n="labelPreviewTextLimit">Preview length (chars)</span>
+              <div class="range">
+                <input
+                  type="range"
+                  id="previewTextLimit"
+                  name="previewTextLimit"
+                  min="60"
+                  max="500"
+                  step="10"
+                  aria-label="Preview length in characters"
+                  data-i18n-aria="ariaPreviewTextLimit"
+                />
+                <span class="range-value" id="previewTextLimitValue">180</span>
+              </div>
+              <p class="hint" data-i18n="hintPreviewTextLimit">
+                Long selections skip preview requests.
+              </p>
+            </div>
+          </div>
+        </div>
+      </details>
 
       <label class="field checkbox">
         <input type="checkbox" id="previewEnabled" name="previewEnabled">
@@ -149,12 +189,18 @@
           Show quick preview notification (when available) before opening
         </span>
       </label>
+      <p class="hint note" data-i18n="hintPreviewApi">
+        Preview uses the MyMemory API and can be disabled.
+      </p>
       <label class="field checkbox">
         <input type="checkbox" id="saveHistory" name="saveHistory">
         <span data-i18n="labelSaveHistory">Keep translation history for quick access</span>
       </label>
+      <p class="hint note" data-i18n="hintHistoryPrivacy">
+        History stores language usage only.
+      </p>
 
-      <div class="history">
+      <div class="history" id="historySection">
         <div class="history-header">
           <span class="label" data-i18n="historyTitle">History</span>
           <button
@@ -174,8 +220,92 @@
         <div id="historySummary" class="history-list"></div>
       </div>
 
+      <section class="notes" id="notesSection">
+        <div class="notes-header">
+          <span class="label" data-i18n="notesTitle">Notes and bookmarks</span>
+          <div class="notes-header-actions">
+            <input
+              type="search"
+              id="notesSearch"
+              aria-label="Search notes"
+              data-i18n-placeholder="notesSearchPlaceholder"
+              placeholder="Search notes"
+            />
+            <button
+              type="button"
+              id="clearNotes"
+              class="ghost-button"
+              data-i18n="buttonClearNotes"
+            >
+              Clear notes
+            </button>
+          </div>
+        </div>
+        <p class="hint" data-i18n="notesHint">
+          Save translations from the context menu or add them manually here.
+        </p>
+        <label class="field checkbox">
+          <input type="checkbox" id="notesAutoTranslate" name="notesAutoTranslate">
+          <span data-i18n="labelNotesAutoTranslate">Auto-translate notes using MyMemory</span>
+        </label>
+        <p class="hint note" data-i18n="hintNotesAutoTranslate">
+          Used when saving selections or when the translation field is empty.
+        </p>
+
+        <div class="note-form">
+          <label class="field">
+            <span class="label" data-i18n="labelNoteSource">Original text</span>
+            <textarea
+              id="noteSource"
+              rows="3"
+              aria-label="Original text"
+              data-i18n-placeholder="placeholderNoteSource"
+              placeholder="Paste a word or phrase"
+            ></textarea>
+          </label>
+          <label class="field">
+            <span class="label" data-i18n="labelNoteTranslation">Translation (optional)</span>
+            <textarea
+              id="noteTranslation"
+              rows="3"
+              aria-label="Translation"
+              data-i18n-placeholder="placeholderNoteTranslation"
+              placeholder="Add the translated text (optional)"
+            ></textarea>
+          </label>
+          <div class="layout two-col">
+            <label class="field">
+              <span class="label" data-i18n="labelNoteTargetLang">Target language</span>
+              <select id="noteTargetLang" name="noteTargetLang" aria-label="Target language"></select>
+            </label>
+            <label class="field">
+              <span class="label" data-i18n="labelNoteTag">Tag</span>
+              <input
+                type="text"
+                id="noteTag"
+                aria-label="Tag"
+                data-i18n-placeholder="placeholderNoteTag"
+                placeholder="Work, travel, study"
+              />
+            </label>
+          </div>
+          <div class="row note-actions">
+            <button type="button" id="saveNote" data-i18n="buttonSaveNote">Save note</button>
+            <button type="button" id="clearNoteForm" class="ghost-button" data-i18n="buttonClearForm">
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div id="notesList" class="notes-list"></div>
+      </section>
+
       <div class="actions">
         <button type="submit" data-i18n="buttonSave">Save</button>
+        <button type="button" id="resetDefaults" class="ghost-button" data-i18n="buttonResetDefaults">
+          Reset to defaults
+        </button>
+        <span id="unsavedHint" class="unsaved" data-i18n="unsavedChanges">Unsaved changes</span>
         <span id="status" role="status" aria-live="polite"></span>
       </div>
     </form>

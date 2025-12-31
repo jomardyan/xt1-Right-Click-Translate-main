@@ -8,8 +8,17 @@
   "description": "__MSG_extDescription__",
   "author": "Hayk Jomardyan",
   "homepage_url": "https://github.com/jomardyan/xt1-Right-Click-Translate",
-  "permissions": ["contextMenus", "tabs", "storage", "scripting", "activeTab", "notifications"],
-  "host_permissions": ["https://api.mymemory.translated.net/*"],
+  "permissions": [
+    "contextMenus",
+    "tabs",
+    "storage",
+    "scripting",
+    "activeTab",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://api.mymemory.translated.net/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -32,7 +41,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_popup": "options.html",
-    "default_title": "Open Options"
+    "default_popup": "popup.html",
+    "default_title": "Open Translate Panel"
   }
 }

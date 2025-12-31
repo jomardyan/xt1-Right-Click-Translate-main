@@ -17,6 +17,7 @@ Right-Click Translate provides instant access to multiple translation services w
 - Quick preview - see a translation notification before opening (with adjustable length)
 - Keyboard shortcut - translate selection with Alt+Shift+T (customizable)
 - Smart history - frequently used languages surface in the menu, with a quick summary and clear option
+- Notes and bookmarks - save translated words and phrases with tags, search, and copy tools
 - Source language control - auto-detect or lock to a specific source language
 - Flexible opening - translations open in a new tab or replace the current tab
 - Dark mode support - options page adapts to system theme
@@ -76,6 +77,10 @@ Add multiple languages in the options page. The context menu shows your list, or
 
 The options page shows recent target language usage. Use "Clear history" to reset usage data.
 
+### Notes and Bookmarks
+
+Save selections from the context menu using "Save selection to notes". Notes are stored locally and appear in the options page where you can search, copy, tag, or delete them. You can also add notes manually and optionally auto-translate them with MyMemory.
+
 ## Configuration
 
 Access options by right-clicking the extension icon:
@@ -88,6 +93,7 @@ Access options by right-clicking the extension icon:
 - **Preview length** - set how many characters are used for previews
 - **Max menu languages** - limit how many languages appear in the menu
 - **History** - view recent usage and clear history
+- **Notes** - save and search notes, clear saved items, and toggle note auto-translate
 - **Theme** - auto, light, or dark mode for options page
 
 ### Supported Providers
@@ -109,7 +115,7 @@ Access options by right-clicking the extension icon:
 
 ## Privacy
 
-Right-Click Translate does not collect or store personal data. Selected text is only sent to your chosen translation provider when you trigger a translation. Preview translations use the MyMemory API and can be disabled. Translation history stores only language usage metadata (no translated text). See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for full details.
+Right-Click Translate does not collect or store personal data. Selected text is only sent to your chosen translation provider when you trigger a translation. Preview translations and optional note auto-translate use the MyMemory API and can be disabled. Translation history stores only language usage metadata; notes you save are stored locally in your browser. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for full details.
 
 ## Development
 

@@ -1,9 +1,7 @@
-const MENU_ID = 'rightClickTranslate';
-const MENU_PAGE_ID = 'rightClickTranslatePage';
+const MENU_NOTE_ID = 'rightClickTranslateNote';
+const MENU_NOTE_SEPARATOR_ID = 'rightClickTranslateNoteSeparator';
 const MENU_LANG_PREFIX = 'rightClickTranslateLang_';
 const MENU_PAGE_LANG_PREFIX = 'rightClickTranslatePageLang_';
-const SUBMENU_ID = `${MENU_ID}_submenu`;
-const SUBMENU_PAGE_ID = `${MENU_PAGE_ID}_submenu`;
 const MAX_HISTORY = 20;
 const DEFAULT_MAX_MENU_LANGUAGES = 6;
 const MIN_MENU_LANGUAGES = 1;
@@ -12,6 +10,9 @@ const DEFAULT_PREVIEW_TEXT_LIMIT = 180;
 const MIN_PREVIEW_TEXT_LIMIT = 60;
 const MAX_PREVIEW_TEXT_LIMIT = 500;
 const PREVIEW_API_URL = 'https://api.mymemory.translated.net/get';
+const NOTES_STORAGE_KEY = 'savedNotes';
+const NOTES_MAX_ITEMS = 200;
+const NOTES_TEXT_LIMIT = 2000;
 
 const LANGUAGE_LABELS = {
   auto: 'Auto-detect',
@@ -50,6 +51,7 @@ const DEFAULT_OPTIONS = {
   saveHistory: true,
   maxMenuLanguages: DEFAULT_MAX_MENU_LANGUAGES,
   previewTextLimit: DEFAULT_PREVIEW_TEXT_LIMIT,
+  notesAutoTranslate: true,
   translationHistory: []
 };
 
@@ -75,17 +77,26 @@ const getPageMenuTitle = (langLabel, providerLabel) =>
     `Translate page to ${langLabel} (${providerLabel})`
   );
 
-const getSubmenuTitle = () => getMessage('menuTranslateSubmenuTitle', null, 'Translate to...');
-
-const getPageSubmenuTitle = () =>
-  getMessage('menuTranslatePageSubmenuTitle', null, 'Translate page to...');
-
 const getPreviewTitle = (providerLabel, targetLabel) =>
   getMessage(
     'notificationPreviewTitle',
     [providerLabel, targetLabel],
     `Preview (${providerLabel} to ${targetLabel})`
   );
+
+const getSaveNoteTitle = () =>
+  getMessage('menuSaveNote', null, 'Save selection to notes');
+
+const getNoteSavedTitle = () =>
+  getMessage('notificationNoteSavedTitle', null, 'Saved to notes');
+
+const getNoteSavedMessage = (hasTranslation) =>
+  hasTranslation
+    ? getMessage('notificationNoteSavedMessage', null, 'Saved selection and translation.')
+    : getMessage('notificationNoteSavedNoTranslation', null, 'Saved selection. Translation unavailable.');
+
+const getNoteSavedError = () =>
+  getMessage('notificationNoteSavedError', null, 'Unable to save note.');
 
 /**
  * Promisified Chrome Storage API
@@ -141,6 +152,60 @@ const getLanguageLabel = (code) => {
  * Get display label for provider
  */
 const getProviderLabel = (provider) => PROVIDERS[provider] || PROVIDERS.google;
+
+const createNoteId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+};
+
+const trimNoteText = (text) =>
+  typeof text === 'string' ? text.trim().slice(0, NOTES_TEXT_LIMIT) : '';
+
+const sanitizeNote = (note) => {
+  if (!note || typeof note !== 'object') return null;
+  const sourceText = trimNoteText(note.sourceText);
+  if (!sourceText) return null;
+
+  const translatedText = trimNoteText(note.translatedText || '');
+  const sourceLang = typeof note.sourceLang === 'string' ? note.sourceLang : 'auto';
+  const targetLang = typeof note.targetLang === 'string' ? note.targetLang : 'en';
+  const provider = typeof note.provider === 'string' ? note.provider : DEFAULT_OPTIONS.provider;
+  const tag = trimNoteText(note.tag || '');
+  const url = isValidPageUrl(note.url) ? note.url : '';
+  const createdAt = typeof note.createdAt === 'number' ? note.createdAt : Date.now();
+  const origin = typeof note.origin === 'string' ? note.origin : 'selection';
+
+  return {
+    id: note.id || createNoteId(),
+    sourceText,
+    translatedText,
+    sourceLang,
+    targetLang,
+    provider,
+    tag,
+    url,
+    createdAt,
+    origin
+  };
+};
+
+const getNotes = () =>
+  new Promise((resolve) => {
+    chrome.storage.local.get({ [NOTES_STORAGE_KEY]: [] }, resolve);
+  });
+
+const setNotes = (notes) =>
+  new Promise((resolve) => {
+    chrome.storage.local.set({ [NOTES_STORAGE_KEY]: notes }, resolve);
+  });
+
+const addNote = async (note) => {
+  const { [NOTES_STORAGE_KEY]: savedNotes = [] } = await getNotes();
+  const safeNote = sanitizeNote(note);
+  if (!safeNote) return;
+  const next = [safeNote, ...savedNotes].slice(0, NOTES_MAX_ITEMS);
+  await setNotes(next);
+};
 
 /**
  * Build translation URL for the selected provider
@@ -281,10 +346,7 @@ const createOrUpdateMenu = async () => {
     .then(async () => {
       try {
         const { targetLanguages = [], provider, maxMenuLanguages } = await getOptions();
-        const primaryTarget = targetLanguages[0] || 'en';
         const providerLabel = getProviderLabel(provider);
-        const menuTitle = getMenuTitle(getLanguageLabel(primaryTarget), providerLabel);
-        const pageTitle = getPageMenuTitle(getLanguageLabel(primaryTarget), providerLabel);
         const languages = await getTopLanguages(
           targetLanguages.length ? targetLanguages : ['en'],
           maxMenuLanguages
@@ -292,49 +354,33 @@ const createOrUpdateMenu = async () => {
 
         await removeAllMenus();
 
-        await safeCreateMenu({
-          id: MENU_ID,
-          title: menuTitle,
-          contexts: ['selection']
-        });
-
-        await safeCreateMenu({
-          id: SUBMENU_ID,
-          title: getSubmenuTitle(),
-          parentId: MENU_ID,
-          contexts: ['selection']
-        });
-
         await Promise.all(
           languages.map((code) =>
             safeCreateMenu({
               id: `${MENU_LANG_PREFIX}${code}`,
-              parentId: SUBMENU_ID,
-              title: getLanguageLabel(code),
+              title: getMenuTitle(getLanguageLabel(code), providerLabel),
               contexts: ['selection']
             })
           )
         );
 
         await safeCreateMenu({
-          id: MENU_PAGE_ID,
-          title: pageTitle,
-          contexts: ['page']
+          id: MENU_NOTE_SEPARATOR_ID,
+          type: 'separator',
+          contexts: ['selection']
         });
 
         await safeCreateMenu({
-          id: SUBMENU_PAGE_ID,
-          title: getPageSubmenuTitle(),
-          parentId: MENU_PAGE_ID,
-          contexts: ['page']
+          id: MENU_NOTE_ID,
+          title: getSaveNoteTitle(),
+          contexts: ['selection']
         });
 
         await Promise.all(
           languages.map((code) =>
             safeCreateMenu({
               id: `${MENU_PAGE_LANG_PREFIX}${code}`,
-              parentId: SUBMENU_PAGE_ID,
-              title: getLanguageLabel(code),
+              title: getPageMenuTitle(getLanguageLabel(code), providerLabel),
               contexts: ['page']
             })
           )
@@ -362,6 +408,32 @@ const showPreviewNotification = (provider, targetLang, resultText, previewLimit)
     });
   } catch (error) {
     console.error('Failed to show preview notification:', error);
+  }
+};
+
+const showNoteNotification = (hasTranslation) => {
+  try {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: getNoteSavedTitle(),
+      message: getNoteSavedMessage(hasTranslation)
+    });
+  } catch (error) {
+    console.error('Failed to show note notification:', error);
+  }
+};
+
+const showNoteErrorNotification = () => {
+  try {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: getNoteSavedTitle(),
+      message: getNoteSavedError()
+    });
+  } catch (error) {
+    console.error('Failed to show note error notification:', error);
   }
 };
 
@@ -440,31 +512,78 @@ const handlePageTranslation = async ({ targetLang, tab, pageUrl }) => {
 };
 
 /**
+ * Handle save note request
+ */
+const handleSaveNote = async ({ text, targetLang, sourceLang, provider, url }) => {
+  try {
+    const trimmed = trimNoteText(text);
+    if (!trimmed) return;
+
+    const { notesAutoTranslate, previewTextLimit } = await getOptions();
+    const previewLimit = normalizePreviewLimit(previewTextLimit);
+    let translatedText = '';
+
+    if (notesAutoTranslate && trimmed.length <= previewLimit) {
+      translatedText = (await fetchPreview(sourceLang, targetLang, trimmed)) || '';
+    }
+
+    await addNote({
+      id: createNoteId(),
+      sourceText: trimmed,
+      translatedText,
+      sourceLang,
+      targetLang,
+      provider,
+      tag: '',
+      url: isValidPageUrl(url) ? url : '',
+      createdAt: Date.now(),
+      origin: 'selection'
+    });
+
+    showNoteNotification(Boolean(translatedText));
+  } catch (error) {
+    console.error('Failed to save note:', error);
+    showNoteErrorNotification();
+  }
+};
+
+/**
  * Handle context menu click
  */
 const onMenuClick = async (info, tab) => {
   try {
     const menuId = String(info.menuItemId);
-    const { targetLanguages = [] } = await getOptions();
+    const { targetLanguages = [], provider, sourceLang } = await getOptions();
     const primaryTarget = targetLanguages[0] || 'en';
 
-    if (menuId === MENU_ID || menuId.startsWith(MENU_LANG_PREFIX)) {
+    if (menuId === MENU_NOTE_ID) {
+      if (!info.selectionText) return;
+      const selected = info.selectionText.trim();
+      if (!selected) return;
+      const pageUrl = info.pageUrl || tab?.url;
+      await handleSaveNote({
+        text: selected,
+        targetLang: primaryTarget,
+        sourceLang,
+        provider,
+        url: pageUrl
+      });
+      return;
+    }
+
+    if (menuId.startsWith(MENU_LANG_PREFIX)) {
       if (!info.selectionText) return;
       const selected = info.selectionText.trim();
       if (!selected) return;
 
-      const target = menuId.startsWith(MENU_LANG_PREFIX)
-        ? menuId.replace(MENU_LANG_PREFIX, '')
-        : primaryTarget;
+      const target = menuId.replace(MENU_LANG_PREFIX, '');
 
       handleTranslation({ text: selected, targetLang: target, tab });
       return;
     }
 
-    if (menuId === MENU_PAGE_ID || menuId.startsWith(MENU_PAGE_LANG_PREFIX)) {
-      const target = menuId.startsWith(MENU_PAGE_LANG_PREFIX)
-        ? menuId.replace(MENU_PAGE_LANG_PREFIX, '')
-        : primaryTarget;
+    if (menuId.startsWith(MENU_PAGE_LANG_PREFIX)) {
+      const target = menuId.replace(MENU_PAGE_LANG_PREFIX, '');
       const pageUrl = info.pageUrl || tab?.url;
       handlePageTranslation({ targetLang: target, tab, pageUrl });
     }
@@ -537,6 +656,7 @@ const ensureDefaultsOnInstall = async () => {
     next.previewTextLimit = normalizePreviewLimit(
       options.previewTextLimit ?? DEFAULT_OPTIONS.previewTextLimit
     );
+    next.notesAutoTranslate = options.notesAutoTranslate ?? DEFAULT_OPTIONS.notesAutoTranslate;
     next.translationHistory = sanitizeHistory(
       options.translationHistory ?? DEFAULT_OPTIONS.translationHistory
     );

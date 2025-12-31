@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="popupTitle">Right-click Translate</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="panel">
+    <header class="header">
+      <img src="icons/icon48.png" alt="" class="brand-icon">
+      <div>
+        <h1 data-i18n="popupTitle">Right-click Translate</h1>
+        <p class="subtitle" data-i18n="popupSubtitle">Translate faster from the context menu.</p>
+      </div>
+    </header>
+
+    <section class="summary">
+      <div class="summary-row">
+        <span class="label" data-i18n="popupPrimaryLabel">Primary language</span>
+        <span id="primaryLang" class="value">English (en)</span>
+      </div>
+      <div class="summary-row">
+        <span class="label" data-i18n="popupProviderLabel">Provider</span>
+        <span id="providerLabel" class="value">Google</span>
+      </div>
+      <div class="summary-row">
+        <span class="label" data-i18n="popupOpenModeLabel">Open mode</span>
+        <span id="openModeLabel" class="value">New tab</span>
+      </div>
+    </section>
+
+    <label class="toggle">
+      <input type="checkbox" id="previewToggle">
+      <span data-i18n="popupPreviewLabel">Quick preview notifications</span>
+    </label>
+
+    <button id="openOptions" class="primary" data-i18n="popupOpenOptions">Open options</button>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

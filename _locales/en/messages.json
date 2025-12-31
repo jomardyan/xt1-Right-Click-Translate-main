@@ -15,6 +15,10 @@
     "message": "Right-click Translate",
     "description": "Options page heading"
   },
+  "optionsTagline": {
+    "message": "Instant translations from the context menu.",
+    "description": "Options page tagline"
+  },
   "optionsSubtitle": {
     "message": "Choose how translations should open and set your target language.",
     "description": "Options page subtitle"
@@ -266,5 +270,261 @@
   "notificationPreviewTitle": {
     "message": "Preview ($1 to $2)",
     "description": "Preview notification title"
+  },
+  "hintPrimaryLanguage": {
+    "message": "Tip: The first language is used for quick actions and shortcuts.",
+    "description": "Primary language hint"
+  },
+  "advancedTitle": {
+    "message": "Advanced settings",
+    "description": "Advanced section title"
+  },
+  "advancedHint": {
+    "message": "Optional tweaks",
+    "description": "Advanced section hint"
+  },
+  "hintPreviewApi": {
+    "message": "Preview uses the MyMemory API and can be disabled.",
+    "description": "Preview API hint"
+  },
+  "hintHistoryPrivacy": {
+    "message": "History stores language usage only.",
+    "description": "History privacy hint"
+  },
+  "buttonResetDefaults": {
+    "message": "Reset to defaults",
+    "description": "Reset defaults button"
+  },
+  "unsavedChanges": {
+    "message": "Unsaved changes",
+    "description": "Unsaved changes indicator"
+  },
+  "badgePrimary": {
+    "message": "Primary",
+    "description": "Primary language badge"
+  },
+  "confirmClearHistory": {
+    "message": "Clear translation history? This cannot be undone.",
+    "description": "Clear history confirmation"
+  },
+  "confirmResetDefaults": {
+    "message": "Reset settings to defaults? History stays the same.",
+    "description": "Reset defaults confirmation"
+  },
+  "statusDefaultsRestored": {
+    "message": "Defaults restored",
+    "description": "Defaults restored status"
+  },
+  "menuSaveNote": {
+    "message": "Save selection to notes",
+    "description": "Context menu title for saving a note"
+  },
+  "notificationNoteSavedTitle": {
+    "message": "Saved to notes",
+    "description": "Note saved notification title"
+  },
+  "notificationNoteSavedMessage": {
+    "message": "Saved selection and translation.",
+    "description": "Note saved notification message"
+  },
+  "notificationNoteSavedNoTranslation": {
+    "message": "Saved selection. Translation unavailable.",
+    "description": "Note saved notification message when translation missing"
+  },
+  "notificationNoteSavedError": {
+    "message": "Unable to save note.",
+    "description": "Note save error notification"
+  },
+  "notesTitle": {
+    "message": "Notes and bookmarks",
+    "description": "Notes section title"
+  },
+  "notesHint": {
+    "message": "Save translations from the context menu or add them manually here.",
+    "description": "Notes section hint"
+  },
+  "labelNotesAutoTranslate": {
+    "message": "Auto-translate notes using MyMemory",
+    "description": "Notes auto-translate label"
+  },
+  "hintNotesAutoTranslate": {
+    "message": "Used when saving selections or when the translation field is empty.",
+    "description": "Notes auto-translate hint"
+  },
+  "labelNoteSource": {
+    "message": "Original text",
+    "description": "Note source label"
+  },
+  "placeholderNoteSource": {
+    "message": "Paste a word or phrase",
+    "description": "Note source placeholder"
+  },
+  "labelNoteTranslation": {
+    "message": "Translation (optional)",
+    "description": "Note translation label"
+  },
+  "placeholderNoteTranslation": {
+    "message": "Add the translated text (optional)",
+    "description": "Note translation placeholder"
+  },
+  "labelNoteTargetLang": {
+    "message": "Target language",
+    "description": "Note target language label"
+  },
+  "labelNoteTag": {
+    "message": "Tag",
+    "description": "Note tag label"
+  },
+  "placeholderNoteTag": {
+    "message": "Work, travel, study",
+    "description": "Note tag placeholder"
+  },
+  "buttonSaveNote": {
+    "message": "Save note",
+    "description": "Save note button"
+  },
+  "buttonClearNotes": {
+    "message": "Clear notes",
+    "description": "Clear notes button"
+  },
+  "buttonClearForm": {
+    "message": "Clear",
+    "description": "Clear note form button"
+  },
+  "notesSearchPlaceholder": {
+    "message": "Search notes",
+    "description": "Notes search placeholder"
+  },
+  "notesEmpty": {
+    "message": "No notes yet.",
+    "description": "Notes empty state"
+  },
+  "notesEmptyFiltered": {
+    "message": "No notes match your search.",
+    "description": "Notes empty search state"
+  },
+  "noteOriginalLabel": {
+    "message": "Original",
+    "description": "Note original label"
+  },
+  "noteTranslationLabel": {
+    "message": "Translation",
+    "description": "Note translation label"
+  },
+  "noteTranslationMissing": {
+    "message": "Translation not saved.",
+    "description": "Note translation missing text"
+  },
+  "buttonCopySource": {
+    "message": "Copy original",
+    "description": "Copy original note button"
+  },
+  "buttonCopyTranslation": {
+    "message": "Copy translation",
+    "description": "Copy translation note button"
+  },
+  "buttonDeleteNote": {
+    "message": "Delete",
+    "description": "Delete note button"
+  },
+  "buttonOpenNoteSource": {
+    "message": "Open source",
+    "description": "Open note source link"
+  },
+  "statusNoteSaved": {
+    "message": "Note saved",
+    "description": "Note saved status"
+  },
+  "statusNoteSavedNoTranslation": {
+    "message": "Note saved without translation",
+    "description": "Note saved without translation status"
+  },
+  "statusNoteSaveError": {
+    "message": "Error saving note",
+    "description": "Note save error status"
+  },
+  "statusNotesCleared": {
+    "message": "Notes cleared",
+    "description": "Notes cleared status"
+  },
+  "statusNotesClearError": {
+    "message": "Error clearing notes",
+    "description": "Notes clear error status"
+  },
+  "statusNoteDeleted": {
+    "message": "Note deleted",
+    "description": "Note deleted status"
+  },
+  "statusNoteDeleteError": {
+    "message": "Error deleting note",
+    "description": "Note delete error status"
+  },
+  "statusNoteCopied": {
+    "message": "Copied",
+    "description": "Note copied status"
+  },
+  "statusNoteCopyError": {
+    "message": "Error copying",
+    "description": "Note copy error status"
+  },
+  "statusNoteNoTranslation": {
+    "message": "Nothing to copy",
+    "description": "Note copy empty status"
+  },
+  "statusNoteMissingSource": {
+    "message": "Add some text before saving",
+    "description": "Note missing source status"
+  },
+  "confirmClearNotes": {
+    "message": "Clear all notes? This cannot be undone.",
+    "description": "Confirm clear notes"
+  },
+  "confirmDeleteNote": {
+    "message": "Delete this note? This cannot be undone.",
+    "description": "Confirm delete note"
+  },
+  "popupTitle": {
+    "message": "Right-click Translate",
+    "description": "Popup title"
+  },
+  "popupSubtitle": {
+    "message": "Translate faster from the context menu.",
+    "description": "Popup subtitle"
+  },
+  "popupPrimaryLabel": {
+    "message": "Primary language",
+    "description": "Popup primary language label"
+  },
+  "popupProviderLabel": {
+    "message": "Provider",
+    "description": "Popup provider label"
+  },
+  "popupOpenModeLabel": {
+    "message": "Open mode",
+    "description": "Popup open mode label"
+  },
+  "popupPreviewLabel": {
+    "message": "Quick preview notifications",
+    "description": "Popup preview toggle label"
+  },
+  "popupOpenOptions": {
+    "message": "Open options",
+    "description": "Popup open options button"
+  },
+  "popupStatusSaved": {
+    "message": "Saved.",
+    "description": "Popup saved status"
+  },
+  "popupStatusError": {
+    "message": "Unable to save.",
+    "description": "Popup error status"
+  },
+  "popupOpenModeNewTab": {
+    "message": "New tab",
+    "description": "Popup open mode label for new tab"
+  },
+  "popupOpenModeCurrentTab": {
+    "message": "Current tab",
+    "description": "Popup open mode label for current tab"
   }
 }

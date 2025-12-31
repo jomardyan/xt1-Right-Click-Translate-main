@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Right-click Translate Options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="card">
+    <h1 data-i18n="optionsHeading">Right-click Translate</h1>
+    <p class="subtitle" data-i18n="optionsSubtitle">
+      Choose how translations should open and set your target language.
+    </p>
+
+    <form id="options-form">
+      <div class="layout two-col">
+        <label class="field">
+          <span class="label" data-i18n="labelSourceLanguage">Source language</span>
+          <select
+            id="sourceLang"
+            name="sourceLang"
+            aria-label="Select source language"
+            data-i18n-aria="ariaSourceLanguage"
+          ></select>
+        </label>
+        <label class="field">
+          <span class="label" data-i18n="labelProvider">Provider</span>
+          <select id="provider" name="provider" aria-label="Select translation provider" data-i18n-aria="ariaProvider">
+            <option value="google" data-i18n="providerGoogle">Google Translate</option>
+            <option value="deepl" data-i18n="providerDeepL">DeepL</option>
+            <option value="bing" data-i18n="providerBing">Bing Translator</option>
+            <option value="yandex" data-i18n="providerYandex">Yandex Translate</option>
+            <option value="microsoft" data-i18n="providerMicrosoft">Microsoft Translator</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="label" data-i18n="labelAddTargetLanguage">Add target language</span>
+        <div class="row">
+          <select
+            id="targetSelect"
+            name="targetSelect"
+            aria-label="Select target language to add"
+            data-i18n-aria="ariaTargetSelect"
+          ></select>
+          <button
+            type="button"
+            id="addTarget"
+            aria-label="Add selected language"
+            data-i18n="buttonAdd"
+            data-i18n-aria="ariaAddTarget"
+          >
+            Add
+          </button>
+        </div>
+        <p class="hint" data-i18n="hintTargetLanguages">
+          Maintain a quick list of languages; these show up in the context menu.
+        </p>
+      </label>
+
+      <label class="field">
+        <span class="label" data-i18n="labelCustomLanguage">Custom language code</span>
+        <div class="row">
+          <input
+            type="text"
+            id="customLangCode"
+            placeholder="e.g., pt-BR, zh-TW"
+            aria-label="Custom language code input"
+            data-i18n-placeholder="placeholderCustomLanguage"
+            data-i18n-aria="ariaCustomLanguage"
+            autocomplete="off"
+          />
+          <button
+            type="button"
+            id="addCustomLang"
+            aria-label="Add custom language"
+            data-i18n="buttonAdd"
+            data-i18n-aria="ariaAddCustomLanguage"
+          >
+            Add
+          </button>
+        </div>
+        <p class="hint" data-i18n="hintCustomLanguage">
+          Enter custom language codes (e.g., pt-BR for Brazilian Portuguese, zh-TW for Traditional Chinese)
+        </p>
+      </label>
+
+      <div class="chips" id="targetsList"></div>
+
+      <div class="layout two-col">
+        <label class="field">
+          <span class="label" data-i18n="labelOpenMode">Open translation</span>
+          <select id="openMode" name="openMode" aria-label="Open translation mode" data-i18n-aria="ariaOpenMode">
+            <option value="newTab" data-i18n="openModeNewTab">In a new tab</option>
+            <option value="currentTab" data-i18n="openModeCurrentTab">In the current tab</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="label" data-i18n="labelTheme">Theme</span>
+          <select id="themeMode" name="themeMode" aria-label="Select theme" data-i18n-aria="ariaTheme">
+            <option value="auto" data-i18n="themeAuto">Auto</option>
+            <option value="light" data-i18n="themeLight">Light</option>
+            <option value="dark" data-i18n="themeDark">Dark</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="layout two-col">
+        <label class="field">
+          <span class="label" data-i18n="labelMaxMenuLanguages">Max menu languages</span>
+          <input
+            type="number"
+            id="maxMenuLanguages"
+            name="maxMenuLanguages"
+            min="1"
+            max="12"
+            step="1"
+            aria-label="Maximum menu languages"
+            data-i18n-aria="ariaMaxMenuLanguages"
+          />
+          <p class="hint" data-i18n="hintMaxMenuLanguages">
+            Limit how many languages appear in the menu.
+          </p>
+        </label>
+        <label class="field">
+          <span class="label" data-i18n="labelPreviewTextLimit">Preview length (chars)</span>
+          <input
+            type="number"
+            id="previewTextLimit"
+            name="previewTextLimit"
+            min="60"
+            max="500"
+            step="10"
+            aria-label="Preview length in characters"
+            data-i18n-aria="ariaPreviewTextLimit"
+          />
+          <p class="hint" data-i18n="hintPreviewTextLimit">
+            Long selections skip preview requests.
+          </p>
+        </label>
+      </div>
+
+      <label class="field checkbox">
+        <input type="checkbox" id="previewEnabled" name="previewEnabled">
+        <span data-i18n="labelPreviewEnabled">
+          Show quick preview notification (when available) before opening
+        </span>
+      </label>
+      <label class="field checkbox">
+        <input type="checkbox" id="saveHistory" name="saveHistory">
+        <span data-i18n="labelSaveHistory">Keep translation history for quick access</span>
+      </label>
+
+      <div class="history">
+        <div class="history-header">
+          <span class="label" data-i18n="historyTitle">History</span>
+          <button
+            type="button"
+            id="clearHistory"
+            class="ghost-button"
+            aria-label="Clear translation history"
+            data-i18n="buttonClearHistory"
+            data-i18n-aria="ariaClearHistory"
+          >
+            Clear history
+          </button>
+        </div>
+        <p class="hint" data-i18n="historyHint">
+          Recent target language usage (from the last 20 translations).
+        </p>
+        <div id="historySummary" class="history-list"></div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" data-i18n="buttonSave">Save</button>
+        <span id="status" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>

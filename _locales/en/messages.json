@@ -1,0 +1,270 @@
+{
+  "extName": {
+    "message": "Right-click Translate",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Translate selected text or pages from the context menu with multiple providers, targets, and quick preview.",
+    "description": "Extension description"
+  },
+  "optionsTitle": {
+    "message": "Right-click Translate Options",
+    "description": "Options page title"
+  },
+  "optionsHeading": {
+    "message": "Right-click Translate",
+    "description": "Options page heading"
+  },
+  "optionsSubtitle": {
+    "message": "Choose how translations should open and set your target language.",
+    "description": "Options page subtitle"
+  },
+  "labelSourceLanguage": {
+    "message": "Source language",
+    "description": "Source language label"
+  },
+  "ariaSourceLanguage": {
+    "message": "Select source language",
+    "description": "Source language select aria label"
+  },
+  "labelProvider": {
+    "message": "Provider",
+    "description": "Provider label"
+  },
+  "ariaProvider": {
+    "message": "Select translation provider",
+    "description": "Provider select aria label"
+  },
+  "providerGoogle": {
+    "message": "Google Translate",
+    "description": "Provider option"
+  },
+  "providerDeepL": {
+    "message": "DeepL",
+    "description": "Provider option"
+  },
+  "providerBing": {
+    "message": "Bing Translator",
+    "description": "Provider option"
+  },
+  "providerYandex": {
+    "message": "Yandex Translate",
+    "description": "Provider option"
+  },
+  "providerMicrosoft": {
+    "message": "Microsoft Translator",
+    "description": "Provider option"
+  },
+  "labelAddTargetLanguage": {
+    "message": "Add target language",
+    "description": "Target language label"
+  },
+  "ariaTargetSelect": {
+    "message": "Select target language to add",
+    "description": "Target select aria label"
+  },
+  "buttonAdd": {
+    "message": "Add",
+    "description": "Add button"
+  },
+  "ariaAddTarget": {
+    "message": "Add selected language",
+    "description": "Add target button aria label"
+  },
+  "labelCustomLanguage": {
+    "message": "Custom language code",
+    "description": "Custom language label"
+  },
+  "placeholderCustomLanguage": {
+    "message": "e.g., pt-BR, zh-TW",
+    "description": "Custom language placeholder"
+  },
+  "ariaCustomLanguage": {
+    "message": "Custom language code input",
+    "description": "Custom language input aria label"
+  },
+  "ariaAddCustomLanguage": {
+    "message": "Add custom language",
+    "description": "Add custom language button aria label"
+  },
+  "hintTargetLanguages": {
+    "message": "Maintain a quick list of languages; these show up in the context menu.",
+    "description": "Target languages hint"
+  },
+  "hintCustomLanguage": {
+    "message": "Enter custom language codes (e.g., pt-BR for Brazilian Portuguese, zh-TW for Traditional Chinese)",
+    "description": "Custom language hint"
+  },
+  "labelOpenMode": {
+    "message": "Open translation",
+    "description": "Open mode label"
+  },
+  "ariaOpenMode": {
+    "message": "Open translation mode",
+    "description": "Open mode aria label"
+  },
+  "openModeNewTab": {
+    "message": "In a new tab",
+    "description": "Open mode option"
+  },
+  "openModeCurrentTab": {
+    "message": "In the current tab",
+    "description": "Open mode option"
+  },
+  "labelTheme": {
+    "message": "Theme",
+    "description": "Theme label"
+  },
+  "ariaTheme": {
+    "message": "Select theme",
+    "description": "Theme select aria label"
+  },
+  "themeAuto": {
+    "message": "Auto",
+    "description": "Theme option"
+  },
+  "themeLight": {
+    "message": "Light",
+    "description": "Theme option"
+  },
+  "themeDark": {
+    "message": "Dark",
+    "description": "Theme option"
+  },
+  "labelMaxMenuLanguages": {
+    "message": "Max menu languages",
+    "description": "Max menu languages label"
+  },
+  "ariaMaxMenuLanguages": {
+    "message": "Maximum menu languages",
+    "description": "Max menu languages aria label"
+  },
+  "hintMaxMenuLanguages": {
+    "message": "Limit how many languages appear in the menu.",
+    "description": "Max menu languages hint"
+  },
+  "labelPreviewTextLimit": {
+    "message": "Preview length (chars)",
+    "description": "Preview length label"
+  },
+  "ariaPreviewTextLimit": {
+    "message": "Preview length in characters",
+    "description": "Preview length aria label"
+  },
+  "hintPreviewTextLimit": {
+    "message": "Long selections skip preview requests.",
+    "description": "Preview length hint"
+  },
+  "labelPreviewEnabled": {
+    "message": "Show quick preview notification (when available) before opening",
+    "description": "Preview toggle label"
+  },
+  "labelSaveHistory": {
+    "message": "Keep translation history for quick access",
+    "description": "Save history label"
+  },
+  "historyTitle": {
+    "message": "History",
+    "description": "History section title"
+  },
+  "historyHint": {
+    "message": "Recent target language usage from the last 20 translations.",
+    "description": "History hint"
+  },
+  "buttonClearHistory": {
+    "message": "Clear history",
+    "description": "Clear history button"
+  },
+  "ariaClearHistory": {
+    "message": "Clear translation history",
+    "description": "Clear history button aria label"
+  },
+  "buttonSave": {
+    "message": "Save",
+    "description": "Save button"
+  },
+  "targetsEmpty": {
+    "message": "No target languages added yet",
+    "description": "Empty target languages message"
+  },
+  "historyDisabled": {
+    "message": "History is disabled.",
+    "description": "History disabled message"
+  },
+  "historyEmpty": {
+    "message": "No history yet.",
+    "description": "History empty message"
+  },
+  "statusAlreadyAdded": {
+    "message": "Already added",
+    "description": "Status message"
+  },
+  "statusAdded": {
+    "message": "Added",
+    "description": "Status message"
+  },
+  "statusEnterLanguageCode": {
+    "message": "Please enter a language code",
+    "description": "Status message"
+  },
+  "statusInvalidLanguageCode": {
+    "message": "Invalid format. Use: en, pt-BR, es-419, zh-Hans",
+    "description": "Status message"
+  },
+  "statusCustomLanguageAdded": {
+    "message": "Custom language added",
+    "description": "Status message"
+  },
+  "statusMissingTarget": {
+    "message": "Add at least one target language",
+    "description": "Status message"
+  },
+  "statusSaved": {
+    "message": "Settings saved successfully",
+    "description": "Status message"
+  },
+  "statusSaveError": {
+    "message": "Error saving settings",
+    "description": "Status message"
+  },
+  "statusHistoryCleared": {
+    "message": "History cleared",
+    "description": "Status message"
+  },
+  "statusHistoryClearError": {
+    "message": "Error clearing history",
+    "description": "Status message"
+  },
+  "ariaMoveLanguageUp": {
+    "message": "Move $1 up",
+    "description": "Move language up aria label"
+  },
+  "ariaMoveLanguageDown": {
+    "message": "Move $1 down",
+    "description": "Move language down aria label"
+  },
+  "ariaRemoveLanguage": {
+    "message": "Remove $1",
+    "description": "Remove language aria label"
+  },
+  "menuTranslateSelection": {
+    "message": "Translate selection to $1 ($2)",
+    "description": "Context menu title for selection"
+  },
+  "menuTranslatePage": {
+    "message": "Translate page to $1 ($2)",
+    "description": "Context menu title for page"
+  },
+  "menuTranslateSubmenuTitle": {
+    "message": "Translate to...",
+    "description": "Selection submenu title"
+  },
+  "menuTranslatePageSubmenuTitle": {
+    "message": "Translate page to...",
+    "description": "Page submenu title"
+  },
+  "notificationPreviewTitle": {
+    "message": "Preview ($1 to $2)",
+    "description": "Preview notification title"
+  }
+}

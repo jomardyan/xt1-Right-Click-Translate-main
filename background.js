@@ -210,31 +210,42 @@ const addNote = async (note) => {
 };
 
 /**
+ * Safely encode text for URL usage
+ */
+const safeEncodeURIComponent = (text) => {
+  if (typeof text !== 'string') return '';
+  return encodeURIComponent(text.slice(0, 5000)); // Limit length to prevent abuse
+};
+
+/**
+ * Sanitize user text input
+ */
+const sanitizeText = (text) => {
+  if (typeof text !== 'string') return '';
+  // Remove any control characters and limit length
+  return text.replace(/[\x00-\x1F\x7F]/g, '').slice(0, 10000);
+};
+
+/**
  * Build translation URL for the selected provider
  */
 const buildUrl = (provider, sourceLang, targetLang, query) => {
   const source = sourceLang || 'auto';
+  const safeSource = safeEncodeURIComponent(source);
+  const safeTarget = safeEncodeURIComponent(targetLang);
+  const safeQuery = query; // Already encoded by caller
+  
   const providers = {
     deepl: () =>
-      `https://www.deepl.com/translator#${encodeURIComponent(source)}/${encodeURIComponent(
-        targetLang
-      )}/${query}`,
+      `https://www.deepl.com/translator#${safeSource}/${safeTarget}/${safeQuery}`,
     bing: () =>
-      `https://www.bing.com/translator?text=${query}&from=${encodeURIComponent(
-        source
-      )}&to=${encodeURIComponent(targetLang)}`,
+      `https://www.bing.com/translator?text=${safeQuery}&from=${safeSource}&to=${safeTarget}`,
     yandex: () =>
-      `https://translate.yandex.com/?source_lang=${encodeURIComponent(
-        source
-      )}&target_lang=${encodeURIComponent(targetLang)}&text=${query}`,
+      `https://translate.yandex.com/?source_lang=${safeSource}&target_lang=${safeTarget}&text=${safeQuery}`,
     microsoft: () =>
-      `https://www.bing.com/translator?text=${query}&from=${encodeURIComponent(
-        source
-      )}&to=${encodeURIComponent(targetLang)}`,
+      `https://www.bing.com/translator?text=${safeQuery}&from=${safeSource}&to=${safeTarget}`,
     google: () =>
-      `https://translate.google.com/?sl=${encodeURIComponent(
-        source
-      )}&tl=${encodeURIComponent(targetLang)}&text=${query}&op=translate`
+      `https://translate.google.com/?sl=${safeSource}&tl=${safeTarget}&text=${safeQuery}&op=translate`
   };
   return (providers[provider] || providers.google)();
 };
@@ -244,27 +255,21 @@ const buildUrl = (provider, sourceLang, targetLang, query) => {
  */
 const buildPageUrl = (provider, sourceLang, targetLang, pageUrl) => {
   const source = sourceLang || 'auto';
+  const safeSource = safeEncodeURIComponent(source);
+  const safeTarget = safeEncodeURIComponent(targetLang);
+  const safePageUrl = safeEncodeURIComponent(pageUrl);
+  
   const providers = {
     deepl: () =>
-      `https://www.deepl.com/translator#${encodeURIComponent(source)}/${encodeURIComponent(
-        targetLang
-      )}/${encodeURIComponent(pageUrl)}`,
+      `https://www.deepl.com/translator#${safeSource}/${safeTarget}/${safePageUrl}`,
     bing: () =>
-      `https://www.bing.com/translator?from=${encodeURIComponent(
-        source
-      )}&to=${encodeURIComponent(targetLang)}&url=${encodeURIComponent(pageUrl)}`,
+      `https://www.bing.com/translator?from=${safeSource}&to=${safeTarget}&url=${safePageUrl}`,
     yandex: () =>
-      `https://translate.yandex.com/translate?lang=${encodeURIComponent(
-        source
-      )}-${encodeURIComponent(targetLang)}&url=${encodeURIComponent(pageUrl)}`,
+      `https://translate.yandex.com/translate?lang=${safeSource}-${safeTarget}&url=${safePageUrl}`,
     microsoft: () =>
-      `https://www.bing.com/translator?from=${encodeURIComponent(
-        source
-      )}&to=${encodeURIComponent(targetLang)}&url=${encodeURIComponent(pageUrl)}`,
+      `https://www.bing.com/translator?from=${safeSource}&to=${safeTarget}&url=${safePageUrl}`,
     google: () =>
-      `https://translate.google.com/translate?sl=${encodeURIComponent(
-        source
-      )}&tl=${encodeURIComponent(targetLang)}&u=${encodeURIComponent(pageUrl)}`
+      `https://translate.google.com/translate?sl=${safeSource}&tl=${safeTarget}&u=${safePageUrl}`
   };
   return (providers[provider] || providers.google)();
 };
@@ -467,15 +472,21 @@ const fetchPreview = async (sourceLang, targetLang, text) => {
  */
 const handleTranslation = async ({ text, targetLang, tab }) => {
   try {
+    const sanitizedText = sanitizeText(text);
+    if (!sanitizedText) {
+      console.warn('Empty or invalid text for translation');
+      return;
+    }
+    
     const { provider, openMode, sourceLang, previewEnabled, previewTextLimit } = await getOptions();
     const previewLimit = normalizePreviewLimit(previewTextLimit);
-    const query = encodeURIComponent(text);
+    const query = encodeURIComponent(sanitizedText);
     const url = buildUrl(provider, sourceLang, targetLang, query);
 
     // Store last translation for popup quick access
     await setOptions({
       lastTranslation: {
-        text,
+        text: sanitizedText,
         sourceLang,
         targetLang,
         provider,
@@ -483,8 +494,8 @@ const handleTranslation = async ({ text, targetLang, tab }) => {
       }
     });
 
-    if (previewEnabled && text.length <= previewLimit) {
-      fetchPreview(sourceLang, targetLang, text)
+    if (previewEnabled && sanitizedText.length <= previewLimit) {
+      fetchPreview(sourceLang, targetLang, sanitizedText)
         .then((result) => {
           if (result) {
             showPreviewNotification(provider, targetLang, result, previewLimit);
@@ -534,7 +545,8 @@ const handlePageTranslation = async ({ targetLang, tab, pageUrl }) => {
  */
 const handleSaveNote = async ({ text, targetLang, sourceLang, provider, url }) => {
   try {
-    const trimmed = trimNoteText(text);
+    const sanitizedText = sanitizeText(text);
+    const trimmed = trimNoteText(sanitizedText);
     if (!trimmed) return;
 
     const { notesAutoTranslate, previewTextLimit } = await getOptions();

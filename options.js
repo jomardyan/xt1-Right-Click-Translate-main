@@ -188,6 +188,7 @@ function getFormValues() {
 function setStatus(message, tone = 'info') {
   elements.status.textContent = message;
   elements.status.setAttribute('aria-live', 'polite');
+  elements.status.setAttribute('role', 'status');
   applyStatusTone(tone);
   if (elements.statusTimeout) clearTimeout(elements.statusTimeout);
   elements.statusTimeout = setTimeout(() => {
@@ -1211,6 +1212,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('options-form').addEventListener('submit', saveOptions);
   document.getElementById('addTarget').addEventListener('click', addTargetLanguage);
   document.getElementById('addCustomLang').addEventListener('click', addCustomLanguage);
+  elements.customLangCode.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addCustomLanguage();
+    }
+  });
   elements.customLangCode.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       addCustomLanguage();

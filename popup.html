@@ -31,12 +31,37 @@
       </div>
     </section>
 
+    <div id="lastTranslation" class="last-translation hidden">
+      <div class="last-translation-header">
+        <span class="label">Last translation</span>
+        <button id="copyLastTranslation" class="icon-btn" title="Copy to clipboard" aria-label="Copy last translation text">
+          📋
+        </button>
+      </div>
+      <div id="lastTranslationText" class="last-translation-text"></div>
+      <div class="last-translation-meta">
+        <span id="lastTranslationLangs"></span>
+        <span id="lastTranslationTime"></span>
+      </div>
+    </div>
+
+    <div id="onlineStatus" class="status-indicator hidden">
+      <span class="status-dot offline"></span>
+      <span>Preview API offline</span>
+    </div>
+
     <label class="toggle">
       <input type="checkbox" id="previewToggle">
       <span data-i18n="popupPreviewLabel">Quick preview notifications</span>
     </label>
 
-    <button id="openOptions" class="primary" data-i18n="popupOpenOptions">Open options</button>
+    <div class="button-group">
+      <button id="swapLanguages" class="secondary" title="Swap source and target languages">
+        <span>⇄</span> Swap Languages
+      </button>
+      <button id="openOptions" class="primary" data-i18n="popupOpenOptions">Open options</button>
+    </div>
+
     <p id="status" role="status" aria-live="polite"></p>
   </main>
 

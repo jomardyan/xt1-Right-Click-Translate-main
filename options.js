@@ -1218,11 +1218,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       addCustomLanguage();
     }
   });
-  elements.customLangCode.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      addCustomLanguage();
-    }
-  });
 
   elements.sourceLang.addEventListener('change', markDirty);
   elements.provider.addEventListener('change', markDirty);

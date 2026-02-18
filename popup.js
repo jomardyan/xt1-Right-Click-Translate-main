@@ -173,7 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Swap: source becomes first target, first target becomes source
+      // Swap logic: old source → new first target, old first target → new source
+      // Keep other targets unchanged
       const newTargets = [sourceLang, ...targetLanguages.slice(1)];
       chrome.storage.sync.set(
         {

@@ -30,7 +30,10 @@ const DEFAULT_OPTIONS = {
   targetLanguages: ['en'],
   provider: 'google',
   openMode: 'newTab',
-  previewEnabled: true
+  previewEnabled: true,
+  sourceLang: 'auto',
+  lastTranslation: null,
+  isOnline: true
 };
 
 const elements = {
@@ -39,6 +42,13 @@ const elements = {
   openModeLabel: document.getElementById('openModeLabel'),
   previewToggle: document.getElementById('previewToggle'),
   openOptions: document.getElementById('openOptions'),
+  swapLanguages: document.getElementById('swapLanguages'),
+  copyLastTranslation: document.getElementById('copyLastTranslation'),
+  lastTranslation: document.getElementById('lastTranslation'),
+  lastTranslationText: document.getElementById('lastTranslationText'),
+  lastTranslationLangs: document.getElementById('lastTranslationLangs'),
+  lastTranslationTime: document.getElementById('lastTranslationTime'),
+  onlineStatus: document.getElementById('onlineStatus'),
   status: document.getElementById('status')
 };
 
@@ -77,6 +87,45 @@ const setStatus = (message, tone) => {
   elements.status.textContent = message;
   elements.status.classList.remove('success', 'error');
   if (tone) elements.status.classList.add(tone);
+  setTimeout(() => {
+    elements.status.textContent = '';
+    elements.status.classList.remove('success', 'error');
+  }, 2500);
+};
+
+const formatTimeAgo = (timestamp) => {
+  if (!timestamp) return '';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
+
+const refreshLastTranslation = (options) => {
+  const lastTrans = options.lastTranslation;
+  if (lastTrans && lastTrans.text) {
+    elements.lastTranslation.classList.remove('hidden');
+    elements.lastTranslationText.textContent = lastTrans.text;
+    const srcLabel = LANGUAGES.find(l => l.code === lastTrans.sourceLang)?.name || lastTrans.sourceLang;
+    const tgtLabel = LANGUAGES.find(l => l.code === lastTrans.targetLang)?.name || lastTrans.targetLang;
+    elements.lastTranslationLangs.textContent = `${srcLabel} → ${tgtLabel}`;
+    elements.lastTranslationTime.textContent = formatTimeAgo(lastTrans.timestamp);
+  } else {
+    elements.lastTranslation.classList.add('hidden');
+  }
+};
+
+const refreshOnlineStatus = (options) => {
+  const isOnline = options.isOnline !== false;
+  if (!isOnline && options.previewEnabled) {
+    elements.onlineStatus.classList.remove('hidden');
+  } else {
+    elements.onlineStatus.classList.add('hidden');
+  }
 };
 
 const refreshSummary = async () => {
@@ -89,6 +138,9 @@ const refreshSummary = async () => {
     elements.providerLabel.textContent = PROVIDERS[options.provider] || PROVIDERS.google;
     elements.openModeLabel.textContent = getOpenModeLabel(options.openMode);
     elements.previewToggle.checked = options.previewEnabled ?? DEFAULT_OPTIONS.previewEnabled;
+    
+    refreshLastTranslation(options);
+    refreshOnlineStatus(options);
   });
 };
 
@@ -108,5 +160,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
   elements.openOptions.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
+  });
+
+  elements.swapLanguages.addEventListener('click', () => {
+    chrome.storage.sync.get(DEFAULT_OPTIONS, (options) => {
+      const sourceLang = options.sourceLang || 'auto';
+      const targetLanguages = options.targetLanguages || ['en'];
+      const primaryTarget = targetLanguages[0];
+
+      if (sourceLang === 'auto') {
+        setStatus('Cannot swap from auto-detect', 'error');
+        return;
+      }
+
+      // Swap: source becomes first target, first target becomes source
+      const newTargets = [sourceLang, ...targetLanguages.slice(1)];
+      chrome.storage.sync.set(
+        {
+          sourceLang: primaryTarget,
+          targetLanguages: newTargets
+        },
+        () => {
+          if (chrome.runtime.lastError) {
+            setStatus('Unable to swap', 'error');
+            return;
+          }
+          setStatus('Languages swapped', 'success');
+          refreshSummary();
+        }
+      );
+    });
+  });
+
+  elements.copyLastTranslation.addEventListener('click', () => {
+    chrome.storage.sync.get({ lastTranslation: null }, (options) => {
+      const lastTrans = options.lastTranslation;
+      if (lastTrans && lastTrans.text) {
+        navigator.clipboard.writeText(lastTrans.text).then(
+          () => setStatus('Copied to clipboard', 'success'),
+          () => setStatus('Failed to copy', 'error')
+        );
+      }
+    });
   });
 });

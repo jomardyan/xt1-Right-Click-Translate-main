@@ -52,7 +52,9 @@ const DEFAULT_OPTIONS = {
   maxMenuLanguages: DEFAULT_MAX_MENU_LANGUAGES,
   previewTextLimit: DEFAULT_PREVIEW_TEXT_LIMIT,
   notesAutoTranslate: true,
-  translationHistory: []
+  translationHistory: [],
+  lastTranslation: null,
+  isOnline: true
 };
 
 const getMessage = (key, substitutions, fallback) => {
@@ -445,12 +447,17 @@ const fetchPreview = async (sourceLang, targetLang, text) => {
     const source = sourceLang === 'auto' ? 'auto' : sourceLang;
     const pair = `${source}|${targetLang}`;
     const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(text)}&langpair=${pair}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      await setOptions({ isOnline: false });
+      return null;
+    }
+    await setOptions({ isOnline: true });
     const data = await res.json();
     return data?.responseData?.translatedText || null;
   } catch (error) {
     console.warn('Failed to fetch preview:', error);
+    await setOptions({ isOnline: false });
     return null;
   }
 };
@@ -464,6 +471,17 @@ const handleTranslation = async ({ text, targetLang, tab }) => {
     const previewLimit = normalizePreviewLimit(previewTextLimit);
     const query = encodeURIComponent(text);
     const url = buildUrl(provider, sourceLang, targetLang, query);
+
+    // Store last translation for popup quick access
+    await setOptions({
+      lastTranslation: {
+        text,
+        sourceLang,
+        targetLang,
+        provider,
+        timestamp: Date.now()
+      }
+    });
 
     if (previewEnabled && text.length <= previewLimit) {
       fetchPreview(sourceLang, targetLang, text)

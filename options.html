@@ -220,6 +220,33 @@
         <div id="historySummary" class="history-list"></div>
       </div>
 
+      <details class="advanced" id="statisticsSection">
+        <summary>
+          <span>Translation Statistics</span>
+          <span class="summary-hint">Your usage insights</span>
+        </summary>
+        <div class="advanced-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="totalTranslations">0</div>
+              <div class="stat-label">Total Translations</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="totalNotes">0</div>
+              <div class="stat-label">Saved Notes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="topProvider">-</div>
+              <div class="stat-label">Favorite Provider</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="topLanguage">-</div>
+              <div class="stat-label">Most Used Language</div>
+            </div>
+          </div>
+        </div>
+      </details>
+
       <section class="notes" id="notesSection">
         <div class="notes-header">
           <span class="label" data-i18n="notesTitle">Notes and bookmarks</span>
@@ -233,6 +260,22 @@
             />
             <button
               type="button"
+              id="exportNotes"
+              class="ghost-button"
+              title="Export notes as JSON"
+            >
+              ⬇ Export
+            </button>
+            <button
+              type="button"
+              id="importNotes"
+              class="ghost-button"
+              title="Import notes from JSON"
+            >
+              ⬆ Import
+            </button>
+            <button
+              type="button"
               id="clearNotes"
               class="ghost-button"
               data-i18n="buttonClearNotes"
@@ -241,6 +284,7 @@
             </button>
           </div>
         </div>
+        <input type="file" id="importFileInput" accept=".json" style="display: none;" />
         <p class="hint" data-i18n="notesHint">
           Save translations from the context menu or add them manually here.
         </p>

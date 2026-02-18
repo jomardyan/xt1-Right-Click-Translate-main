@@ -91,6 +91,92 @@ h1 {
   accent-color: var(--accent);
 }
 
+.last-translation {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(17, 26, 45, 0.6);
+  font-size: 0.85rem;
+}
+
+.last-translation.hidden {
+  display: none;
+}
+
+.last-translation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.last-translation-text {
+  margin: 6px 0;
+  padding: 8px;
+  background: rgba(107, 140, 255, 0.1);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  max-height: 80px;
+  overflow-y: auto;
+  word-break: break-word;
+}
+
+.last-translation-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(107, 140, 255, 0.2);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #fca5a5;
+}
+
+.status-indicator.hidden {
+  display: none;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #86efac;
+}
+
+.status-dot.offline {
+  background: #fca5a5;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 button {
   border: none;
   border-radius: 10px;
@@ -108,6 +194,17 @@ button.primary {
 
 button.primary:hover {
   filter: brightness(1.05);
+}
+
+button.secondary {
+  background: rgba(107, 140, 255, 0.15);
+  color: var(--accent);
+  font-weight: 600;
+  border: 1px solid rgba(107, 140, 255, 0.3);
+}
+
+button.secondary:hover {
+  background: rgba(107, 140, 255, 0.25);
 }
 
 #status {
@@ -138,5 +235,20 @@ button.primary:hover {
 
   button.primary {
     color: #ffffff;
+  }
+
+  button.secondary {
+    background: rgba(47, 111, 224, 0.1);
+    color: var(--accent);
+    border-color: rgba(47, 111, 224, 0.3);
+  }
+
+  .last-translation-text {
+    background: rgba(47, 111, 224, 0.08);
+  }
+
+  .status-indicator {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
   }
 }

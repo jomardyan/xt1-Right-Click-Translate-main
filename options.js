@@ -1036,6 +1036,125 @@ function applyTheme(mode) {
 }
 
 /**
+ * Export notes as JSON file
+ */
+async function exportNotes() {
+  try {
+    const { [NOTES_STORAGE_KEY]: notes = [] } = await getNotes();
+    if (notes.length === 0) {
+      setStatus('No notes to export', 'info');
+      return;
+    }
+
+    const dataStr = JSON.stringify(notes, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `translate-notes-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setStatus('Notes exported', 'success');
+  } catch (error) {
+    console.error('Failed to export notes:', error);
+    setStatus('Export failed', 'error');
+  }
+}
+
+/**
+ * Import notes from JSON file
+ */
+async function importNotes() {
+  const fileInput = document.getElementById('importFileInput');
+  fileInput.click();
+}
+
+async function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const imported = JSON.parse(text);
+
+    if (!Array.isArray(imported)) {
+      setStatus('Invalid file format', 'error');
+      return;
+    }
+
+    const { [NOTES_STORAGE_KEY]: existingNotes = [] } = await getNotes();
+    const sanitized = imported.map(sanitizeNote).filter(Boolean);
+    
+    if (sanitized.length === 0) {
+      setStatus('No valid notes found', 'error');
+      return;
+    }
+
+    // Merge with existing, avoiding duplicates by ID
+    const existingIds = new Set(existingNotes.map(n => n.id));
+    const newNotes = sanitized.filter(n => !existingIds.has(n.id));
+    const merged = [...newNotes, ...existingNotes].slice(0, NOTES_MAX_ITEMS);
+
+    await setNotes(merged);
+    await refreshNotes();
+    setStatus(`Imported ${newNotes.length} notes`, 'success');
+  } catch (error) {
+    console.error('Failed to import notes:', error);
+    setStatus('Import failed - invalid JSON', 'error');
+  } finally {
+    event.target.value = '';
+  }
+}
+
+/**
+ * Calculate and display statistics
+ */
+async function refreshStatistics() {
+  try {
+    const options = await new Promise((resolve) => {
+      chrome.storage.sync.get({ translationHistory: [] }, resolve);
+    });
+    const { [NOTES_STORAGE_KEY]: notes = [] } = await getNotes();
+    const history = options.translationHistory || [];
+
+    // Total translations
+    document.getElementById('totalTranslations').textContent = history.length;
+
+    // Total notes
+    document.getElementById('totalNotes').textContent = notes.length;
+
+    // Top provider
+    if (history.length > 0) {
+      const providerCounts = history.reduce((acc, entry) => {
+        acc[entry.provider] = (acc[entry.provider] || 0) + 1;
+        return acc;
+      }, {});
+      const topProvider = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0];
+      document.getElementById('topProvider').textContent = PROVIDERS[topProvider[0]] || topProvider[0];
+    } else {
+      document.getElementById('topProvider').textContent = '-';
+    }
+
+    // Top language
+    if (history.length > 0) {
+      const langCounts = history.reduce((acc, entry) => {
+        acc[entry.targetLang] = (acc[entry.targetLang] || 0) + 1;
+        return acc;
+      }, {});
+      const topLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0];
+      const langObj = LANGUAGES.find(l => l.code === topLang[0]);
+      document.getElementById('topLanguage').textContent = langObj ? langObj.name : topLang[0];
+    } else {
+      document.getElementById('topLanguage').textContent = '-';
+    }
+  } catch (error) {
+    console.error('Failed to refresh statistics:', error);
+  }
+}
+
+/**
  * Cache DOM elements
  */
 function initElements() {
@@ -1067,6 +1186,9 @@ function initElements() {
   elements.notesList = document.getElementById('notesList');
   elements.notesSearch = document.getElementById('notesSearch');
   elements.clearNotes = document.getElementById('clearNotes');
+  elements.exportNotes = document.getElementById('exportNotes');
+  elements.importNotes = document.getElementById('importNotes');
+  elements.importFileInput = document.getElementById('importFileInput');
   elements.openModeInputs = document.querySelectorAll('input[name="openMode"]');
   elements.themeModeInputs = document.querySelectorAll('input[name="themeMode"]');
   elements.targetLanguages = [];
@@ -1084,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderSelect(elements.targetSelect, false);
   await restoreOptions();
   await refreshNotes();
+  await refreshStatistics();
 
   document.getElementById('options-form').addEventListener('submit', saveOptions);
   document.getElementById('addTarget').addEventListener('click', addTargetLanguage);
@@ -1146,13 +1269,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   elements.clearNoteForm.addEventListener('click', clearNoteForm);
   elements.notesSearch.addEventListener('input', () => renderNotes(elements.cachedNotes));
   elements.clearNotes.addEventListener('click', clearNotes);
+  elements.exportNotes.addEventListener('click', exportNotes);
+  elements.importNotes.addEventListener('click', importNotes);
+  elements.importFileInput.addEventListener('change', handleImportFile);
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync' && (changes.translationHistory || changes.saveHistory)) {
       refreshHistorySummary();
+      refreshStatistics();
     }
     if (area === 'local' && changes[NOTES_STORAGE_KEY]) {
       refreshNotes();
+      refreshStatistics();
     }
   });
 });

@@ -1274,7 +1274,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   elements.clearHistory.addEventListener('click', clearHistory);
   elements.saveNote.addEventListener('click', saveManualNote);
   elements.clearNoteForm.addEventListener('click', clearNoteForm);
-  elements.notesSearch.addEventListener('input', () => renderNotes(elements.cachedNotes));
+  
+  // Debounce search input for better performance
+  let searchTimeout;
+  elements.notesSearch.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => renderNotes(elements.cachedNotes), 300);
+  });
+  
   elements.clearNotes.addEventListener('click', clearNotes);
   elements.exportNotes.addEventListener('click', exportNotes);
   elements.importNotes.addEventListener('click', importNotes);

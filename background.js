@@ -407,12 +407,19 @@ const showPreviewNotification = (provider, targetLang, resultText, previewLimit)
     const targetLabel = getLanguageLabel(targetLang);
     const message = resultText.slice(0, previewLimit);
 
-    chrome.notifications.create({
+    const notificationId = `preview_${Date.now()}`;
+    chrome.notifications.create(notificationId, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: getPreviewTitle(providerLabel, targetLabel),
-      message
+      message,
+      priority: 1
     });
+    
+    // Auto-clear notification after 8 seconds
+    setTimeout(() => {
+      chrome.notifications.clear(notificationId);
+    }, 8000);
   } catch (error) {
     console.error('Failed to show preview notification:', error);
   }
@@ -420,12 +427,19 @@ const showPreviewNotification = (provider, targetLang, resultText, previewLimit)
 
 const showNoteNotification = (hasTranslation) => {
   try {
-    chrome.notifications.create({
+    const notificationId = `note_${Date.now()}`;
+    chrome.notifications.create(notificationId, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: getNoteSavedTitle(),
-      message: getNoteSavedMessage(hasTranslation)
+      message: getNoteSavedMessage(hasTranslation),
+      priority: 1
     });
+    
+    // Auto-clear notification after 5 seconds
+    setTimeout(() => {
+      chrome.notifications.clear(notificationId);
+    }, 5000);
   } catch (error) {
     console.error('Failed to show note notification:', error);
   }
@@ -433,12 +447,19 @@ const showNoteNotification = (hasTranslation) => {
 
 const showNoteErrorNotification = () => {
   try {
-    chrome.notifications.create({
+    const notificationId = `note_error_${Date.now()}`;
+    chrome.notifications.create(notificationId, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: getNoteSavedTitle(),
-      message: getNoteSavedError()
+      message: getNoteSavedError(),
+      priority: 2
     });
+    
+    // Auto-clear notification after 5 seconds
+    setTimeout(() => {
+      chrome.notifications.clear(notificationId);
+    }, 5000);
   } catch (error) {
     console.error('Failed to show note error notification:', error);
   }
@@ -630,10 +651,20 @@ const onCommand = async (command) => {
     if (command === 'translate-selection') {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) return;
+      
+      // Check if tab URL is scriptable
+      if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || 
+          tab.url.startsWith('about:') || tab.url.startsWith('chrome-extension://'))) {
+        console.warn('Cannot run script on browser internal page');
+        return;
+      }
 
       const result = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => window.getSelection()?.toString() || ''
+      }).catch((error) => {
+        console.error('Script execution failed:', error);
+        return null;
       });
 
       const selected = (result && result[0]?.result?.trim()) || '';

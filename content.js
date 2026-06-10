@@ -11,6 +11,9 @@
   /** @type {{ x: number, y: number } | null} */
   let lastSelectionPos = null;
 
+  /** Half the popup's max-width; used when no selection position is available. */
+  const FALLBACK_POPUP_HALF_WIDTH = 160;
+
   const POPUP_STYLES = `
     *,
     *::before,
@@ -235,7 +238,7 @@
   const showLoading = (originalText, providerLabel) => {
     captureSelectionPosition();
 
-    const anchorX = lastSelectionPos ? lastSelectionPos.x : window.innerWidth / 2 - 160;
+    const anchorX = lastSelectionPos ? lastSelectionPos.x : window.innerWidth / 2 - FALLBACK_POPUP_HALF_WIDTH;
     const anchorY = lastSelectionPos ? lastSelectionPos.y : window.innerHeight / 2;
     const { left, top } = computePosition(anchorX, anchorY);
 
@@ -276,7 +279,7 @@
   const showResult = (originalText, translatedText, targetLang, providerLabel) => {
     // If the popup was closed before the result came in, show a fresh one.
     if (!popupState) {
-      const anchorX = lastSelectionPos ? lastSelectionPos.x : window.innerWidth / 2 - 160;
+      const anchorX = lastSelectionPos ? lastSelectionPos.x : window.innerWidth / 2 - FALLBACK_POPUP_HALF_WIDTH;
       const anchorY = lastSelectionPos ? lastSelectionPos.y : window.innerHeight / 2;
       const { left, top } = computePosition(anchorX, anchorY);
 
@@ -325,7 +328,7 @@
   document.addEventListener(
     'mousedown',
     (e) => {
-      if (popupState && !popupState.host.contains(e.target)) {
+      if (popupState && !e.composedPath().includes(popupState.host)) {
         removePopup();
       }
     },

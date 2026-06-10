@@ -32,6 +32,7 @@ const DEFAULT_OPTIONS = {
   openMode: 'newTab',
   previewEnabled: true,
   sourceLang: 'auto',
+  themeMode: 'auto',
   lastTranslation: null,
   isOnline: true
 };
@@ -79,6 +80,9 @@ const getLanguageLabel = (code) => {
 const getOpenModeLabel = (mode) => {
   if (mode === 'currentTab') {
     return getMessage('popupOpenModeCurrentTab', null, 'Current tab');
+  }
+  if (mode === 'inline') {
+    return getMessage('popupOpenModeInline', null, 'Inline');
   }
   return getMessage('popupOpenModeNewTab', null, 'New tab');
 };
@@ -138,7 +142,16 @@ const refreshSummary = async () => {
     elements.providerLabel.textContent = PROVIDERS[options.provider] || PROVIDERS.google;
     elements.openModeLabel.textContent = getOpenModeLabel(options.openMode);
     elements.previewToggle.checked = options.previewEnabled ?? DEFAULT_OPTIONS.previewEnabled;
-    
+
+    const themeMode = options.themeMode || 'auto';
+    if (themeMode === 'dark') {
+      document.documentElement.dataset.theme = 'dark';
+    } else if (themeMode === 'light') {
+      document.documentElement.dataset.theme = 'light';
+    } else {
+      delete document.documentElement.dataset.theme;
+    }
+
     refreshLastTranslation(options);
     refreshOnlineStatus(options);
   });

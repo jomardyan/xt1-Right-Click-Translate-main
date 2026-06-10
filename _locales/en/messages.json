@@ -115,6 +115,14 @@
     "message": "In the current tab",
     "description": "Open mode option"
   },
+  "openModeInline": {
+    "message": "Inline (on page)",
+    "description": "Open mode option — show translation as a popup directly on the page"
+  },
+  "hintOpenModeInline": {
+    "message": "Inline mode shows a popup on the page using the MyMemory API. No tab is opened.",
+    "description": "Hint shown when the inline open mode is selected"
+  },
   "labelTheme": {
     "message": "Theme",
     "description": "Theme label"
@@ -519,6 +527,21 @@
     "message": "Unable to save.",
     "description": "Popup error status"
   },
+  "statsTitle": { "message": "Translation Statistics", "description": "Statistics section title" },
+  "statsHint": { "message": "Your usage insights", "description": "Statistics section hint" },
+  "statLabelTranslations": { "message": "Total Translations", "description": "Stat label" },
+  "statLabelNotes": { "message": "Saved Notes", "description": "Stat label" },
+  "statLabelProvider": { "message": "Favorite Provider", "description": "Stat label" },
+  "statLabelLanguage": { "message": "Most Used Language", "description": "Stat label" },
+  "exportNotesTitle": { "message": "Export notes as JSON", "description": "Export notes button title" },
+  "importNotesTitle": { "message": "Import notes from JSON", "description": "Import notes button title" },
+  "statusNoNotesToExport": { "message": "No notes to export", "description": "Export empty status" },
+  "statusNotesExported": { "message": "Notes exported", "description": "Export success status" },
+  "statusExportFailed": { "message": "Export failed", "description": "Export failed status" },
+  "statusInvalidFileFormat": { "message": "Invalid file format", "description": "Import invalid format status" },
+  "statusNoValidNotes": { "message": "No valid notes found in file", "description": "Import no valid notes status" },
+  "statusNotesImported": { "message": "Imported $1 notes", "description": "Import success status" },
+  "statusImportFailed": { "message": "Import failed - invalid JSON", "description": "Import failed status" },
   "popupOpenModeNewTab": {
     "message": "New tab",
     "description": "Popup open mode label for new tab"
@@ -526,5 +549,9 @@
   "popupOpenModeCurrentTab": {
     "message": "Current tab",
     "description": "Popup open mode label for current tab"
+  },
+  "popupOpenModeInline": {
+    "message": "Inline",
+    "description": "Popup open mode label for inline translation on the page"
   }
 }

@@ -1,3 +1,7 @@
+// Bundled ELD language detector (Apache-2.0, see vendor/ELD-LICENSE).
+// The build registers itself as globalThis.eld.
+import './vendor/eld.min.js';
+
 const MENU_NOTE_ID = 'rightClickTranslateNote';
 const MENU_NOTE_SEPARATOR_ID = 'rightClickTranslateNoteSeparator';
 const MENU_LANG_PREFIX = 'rightClickTranslateLang_';
@@ -466,11 +470,38 @@ const showNoteErrorNotification = () => {
 };
 
 /**
- * Detect the language of a text snippet via chrome.i18n.
- * Resolves to a language code, or null when detection is unavailable
- * or inconclusive.
+ * Language detection backends, tried in order of accuracy:
+ * 1. Chrome's built-in AI LanguageDetector (Chrome 138+), used only when
+ *    its model is already available so we never trigger a download
+ * 2. chrome.i18n.detectLanguage (CLD)
+ * 3. Bundled ELD library, which works fully offline
  */
-const detectTextLanguage = (text) =>
+let builtinDetectorPromise = null;
+
+const detectWithBuiltinAI = async (text) => {
+  try {
+    if (typeof LanguageDetector === 'undefined') return null;
+    if (!builtinDetectorPromise) {
+      builtinDetectorPromise = LanguageDetector.availability()
+        .then((availability) =>
+          availability === 'available' ? LanguageDetector.create() : null
+        )
+        .catch(() => null);
+    }
+    const detector = await builtinDetectorPromise;
+    if (!detector) return null;
+    const results = await detector.detect(text);
+    const top = results?.[0];
+    if (!top?.detectedLanguage || top.detectedLanguage === 'und') return null;
+    if (typeof top.confidence === 'number' && top.confidence < 0.4) return null;
+    return top.detectedLanguage;
+  } catch (error) {
+    console.warn('Built-in AI language detection failed:', error);
+    return null;
+  }
+};
+
+const detectWithChromeI18n = (text) =>
   new Promise((resolve) => {
     try {
       if (!chrome?.i18n?.detectLanguage) {
@@ -479,18 +510,38 @@ const detectTextLanguage = (text) =>
       }
       chrome.i18n.detectLanguage(text, (result) => {
         const candidate = result?.languages?.[0]?.language;
-        if (!candidate || candidate === 'und') {
-          resolve(null);
-          return;
-        }
-        // chrome.i18n reports bare 'zh'; MyMemory expects a region subtag
-        resolve(candidate === 'zh' ? 'zh-CN' : candidate);
+        resolve(candidate && candidate !== 'und' ? candidate : null);
       });
     } catch (error) {
-      console.warn('Language detection failed:', error);
+      console.warn('chrome.i18n language detection failed:', error);
       resolve(null);
     }
   });
+
+const detectWithEld = (text) => {
+  try {
+    if (typeof eld === 'undefined' || !eld?.detect) return null;
+    return eld.detect(text)?.language || null;
+  } catch (error) {
+    console.warn('ELD language detection failed:', error);
+    return null;
+  }
+};
+
+/**
+ * Detect the language of a text snippet.
+ * Resolves to a language code, or null when every backend is
+ * unavailable or inconclusive.
+ */
+const detectTextLanguage = async (text) => {
+  const detected =
+    (await detectWithBuiltinAI(text)) ||
+    (await detectWithChromeI18n(text)) ||
+    detectWithEld(text);
+  if (!detected) return null;
+  // detectors report bare 'zh'; MyMemory expects a region subtag
+  return detected === 'zh' ? 'zh-CN' : detected;
+};
 
 /**
  * Fetch preview from MyMemory API.

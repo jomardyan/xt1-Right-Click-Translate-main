@@ -15,6 +15,11 @@ A Chrome extension that lets you translate selected text or entire pages via rig
 - Keyboard shortcut: `Alt+Shift+T` to translate selection
 - Configurable target language via the Options page
 - Supports 50+ languages
+- Automatic source language detection for previews, using Chrome's built-in
+  [LanguageDetector](https://developer.mozilla.org/en-US/docs/Web/API/LanguageDetector) AI API
+  when available, with `chrome.i18n.detectLanguage` and the bundled
+  [ELD](https://github.com/nitotm/efficient-language-detector-js) library
+  (Apache-2.0, see `vendor/ELD-LICENSE`) as offline fallbacks
 
 ## Installation
 

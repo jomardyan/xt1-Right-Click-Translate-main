@@ -10,7 +10,10 @@ let ctx;
 let bg;
 
 beforeAll(() => {
-  const src = fs.readFileSync(path.join(__dirname, '../background.js'), 'utf8');
+  // vm scripts cannot contain ES module syntax; drop the vendor import
+  const src = fs
+    .readFileSync(path.join(__dirname, '../background.js'), 'utf8')
+    .replace(/^import\s.*$/gm, '');
   ctx = vm.createContext({
     chrome: global.chrome,
     fetch: jest.fn(),
@@ -393,5 +396,88 @@ describe('fetchPreview', () => {
     mockFetchResponse({}, false);
     const result = await bg.fetchPreview('fr', 'en', 'bonjour');
     expect(result).toBeNull();
+  });
+});
+
+describe('language detection chain', () => {
+  const resetBuiltinDetectorCache = () => {
+    vm.runInContext('builtinDetectorPromise = null', ctx);
+  };
+
+  afterEach(() => {
+    delete ctx.LanguageDetector;
+    delete ctx.eld;
+    resetBuiltinDetectorCache();
+  });
+
+  test('prefers the built-in AI LanguageDetector when available', async () => {
+    ctx.LanguageDetector = {
+      availability: () => Promise.resolve('available'),
+      create: () =>
+        Promise.resolve({
+          detect: () => Promise.resolve([{ detectedLanguage: 'pl', confidence: 0.92 }])
+        })
+    };
+    resetBuiltinDetectorCache();
+
+    await expect(bg.detectTextLanguage('czesc swiecie')).resolves.toBe('pl');
+    expect(chrome.i18n.detectLanguage).not.toHaveBeenCalled();
+  });
+
+  test('skips the built-in AI detector when its model is not downloaded', async () => {
+    ctx.LanguageDetector = {
+      availability: () => Promise.resolve('downloadable'),
+      create: jest.fn()
+    };
+    resetBuiltinDetectorCache();
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'fr', percentage: 90 }] })
+    );
+
+    await expect(bg.detectTextLanguage('bonjour')).resolves.toBe('fr');
+    expect(ctx.LanguageDetector.create).not.toHaveBeenCalled();
+  });
+
+  test('ignores low-confidence built-in AI results', async () => {
+    ctx.LanguageDetector = {
+      availability: () => Promise.resolve('available'),
+      create: () =>
+        Promise.resolve({
+          detect: () => Promise.resolve([{ detectedLanguage: 'pl', confidence: 0.1 }])
+        })
+    };
+    resetBuiltinDetectorCache();
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'de', percentage: 80 }] })
+    );
+
+    await expect(bg.detectTextLanguage('hm')).resolves.toBe('de');
+  });
+
+  test('falls back to bundled ELD when other detectors fail', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    ctx.eld = { detect: () => ({ language: 'tr' }) };
+
+    await expect(bg.detectTextLanguage('merhaba dunya')).resolves.toBe('tr');
+  });
+
+  test('normalizes zh from ELD to zh-CN', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    ctx.eld = { detect: () => ({ language: 'zh' }) };
+
+    await expect(bg.detectTextLanguage('ni hao')).resolves.toBe('zh-CN');
+  });
+
+  test('resolves null when every backend fails', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    ctx.eld = { detect: () => ({ language: '' }) };
+
+    await expect(bg.detectTextLanguage('???')).resolves.toBeNull();
   });
 });

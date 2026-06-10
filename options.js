@@ -830,9 +830,38 @@ function clearNoteForm() {
   elements.noteSource.focus();
 }
 
-// MyMemory rejects 'auto' as a source language; resolve it via
-// chrome.i18n detection before building the langpair.
-function detectTextLanguage(text) {
+// MyMemory rejects 'auto' as a source language; resolve it before
+// building the langpair. Detection backends, in order of accuracy:
+// 1. Chrome's built-in AI LanguageDetector (Chrome 138+), used only when
+//    its model is already available so we never trigger a download
+// 2. chrome.i18n.detectLanguage (CLD)
+// 3. Bundled ELD library (loaded via <script> in options.html), offline
+let builtinDetectorPromise = null;
+
+async function detectWithBuiltinAI(text) {
+  try {
+    if (typeof LanguageDetector === 'undefined') return null;
+    if (!builtinDetectorPromise) {
+      builtinDetectorPromise = LanguageDetector.availability()
+        .then((availability) =>
+          availability === 'available' ? LanguageDetector.create() : null
+        )
+        .catch(() => null);
+    }
+    const detector = await builtinDetectorPromise;
+    if (!detector) return null;
+    const results = await detector.detect(text);
+    const top = results?.[0];
+    if (!top?.detectedLanguage || top.detectedLanguage === 'und') return null;
+    if (typeof top.confidence === 'number' && top.confidence < 0.4) return null;
+    return top.detectedLanguage;
+  } catch (error) {
+    console.warn('Built-in AI language detection failed:', error);
+    return null;
+  }
+}
+
+function detectWithChromeI18n(text) {
   return new Promise((resolve) => {
     try {
       if (!chrome?.i18n?.detectLanguage) {
@@ -841,17 +870,33 @@ function detectTextLanguage(text) {
       }
       chrome.i18n.detectLanguage(text, (result) => {
         const candidate = result?.languages?.[0]?.language;
-        if (!candidate || candidate === 'und') {
-          resolve(null);
-          return;
-        }
-        resolve(candidate === 'zh' ? 'zh-CN' : candidate);
+        resolve(candidate && candidate !== 'und' ? candidate : null);
       });
     } catch (error) {
-      console.warn('Language detection failed:', error);
+      console.warn('chrome.i18n language detection failed:', error);
       resolve(null);
     }
   });
+}
+
+function detectWithEld(text) {
+  try {
+    if (typeof eld === 'undefined' || !eld?.detect) return null;
+    return eld.detect(text)?.language || null;
+  } catch (error) {
+    console.warn('ELD language detection failed:', error);
+    return null;
+  }
+}
+
+async function detectTextLanguage(text) {
+  const detected =
+    (await detectWithBuiltinAI(text)) ||
+    (await detectWithChromeI18n(text)) ||
+    detectWithEld(text);
+  if (!detected) return null;
+  // detectors report bare 'zh'; MyMemory expects a region subtag
+  return detected === 'zh' ? 'zh-CN' : detected;
 }
 
 async function fetchNoteTranslation(sourceLang, targetLang, text) {

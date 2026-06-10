@@ -466,11 +466,42 @@ const showNoteErrorNotification = () => {
 };
 
 /**
- * Fetch preview from MyMemory API
+ * Detect the language of a text snippet via chrome.i18n.
+ * Resolves to a language code, or null when detection is unavailable
+ * or inconclusive.
+ */
+const detectTextLanguage = (text) =>
+  new Promise((resolve) => {
+    try {
+      if (!chrome?.i18n?.detectLanguage) {
+        resolve(null);
+        return;
+      }
+      chrome.i18n.detectLanguage(text, (result) => {
+        const candidate = result?.languages?.[0]?.language;
+        if (!candidate || candidate === 'und') {
+          resolve(null);
+          return;
+        }
+        // chrome.i18n reports bare 'zh'; MyMemory expects a region subtag
+        resolve(candidate === 'zh' ? 'zh-CN' : candidate);
+      });
+    } catch (error) {
+      console.warn('Language detection failed:', error);
+      resolve(null);
+    }
+  });
+
+/**
+ * Fetch preview from MyMemory API.
+ * MyMemory rejects 'auto' as a source language, so the source is
+ * resolved via language detection before building the langpair.
  */
 const fetchPreview = async (sourceLang, targetLang, text) => {
   try {
-    const source = sourceLang === 'auto' ? 'auto' : sourceLang;
+    const source = sourceLang === 'auto' ? await detectTextLanguage(text) : sourceLang;
+    if (!source) return null;
+    if (source.toLowerCase() === String(targetLang).toLowerCase()) return text;
     const pair = `${source}|${targetLang}`;
     const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(text)}&langpair=${pair}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -480,6 +511,13 @@ const fetchPreview = async (sourceLang, targetLang, text) => {
     }
     await setOptions({ isOnline: true });
     const data = await res.json();
+    // MyMemory returns HTTP 200 with the error text in translatedText;
+    // responseStatus is the real outcome
+    const status = data?.responseStatus;
+    if (status !== undefined && Number(status) !== 200) {
+      console.warn('MyMemory API error:', data?.responseDetails || status);
+      return null;
+    }
     return data?.responseData?.translatedText || null;
   } catch (error) {
     console.warn('Failed to fetch preview:', error);

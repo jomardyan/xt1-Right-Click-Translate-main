@@ -830,14 +830,47 @@ function clearNoteForm() {
   elements.noteSource.focus();
 }
 
+// MyMemory rejects 'auto' as a source language; resolve it via
+// chrome.i18n detection before building the langpair.
+function detectTextLanguage(text) {
+  return new Promise((resolve) => {
+    try {
+      if (!chrome?.i18n?.detectLanguage) {
+        resolve(null);
+        return;
+      }
+      chrome.i18n.detectLanguage(text, (result) => {
+        const candidate = result?.languages?.[0]?.language;
+        if (!candidate || candidate === 'und') {
+          resolve(null);
+          return;
+        }
+        resolve(candidate === 'zh' ? 'zh-CN' : candidate);
+      });
+    } catch (error) {
+      console.warn('Language detection failed:', error);
+      resolve(null);
+    }
+  });
+}
+
 async function fetchNoteTranslation(sourceLang, targetLang, text) {
   try {
-    const source = sourceLang === 'auto' ? 'auto' : sourceLang;
+    const source = sourceLang === 'auto' ? await detectTextLanguage(text) : sourceLang;
+    if (!source) return '';
+    if (source.toLowerCase() === String(targetLang).toLowerCase()) return text;
     const pair = `${source}|${targetLang}`;
     const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(text)}&langpair=${pair}`;
     const res = await fetch(url);
     if (!res.ok) return '';
     const data = await res.json();
+    // MyMemory returns HTTP 200 with the error text in translatedText;
+    // responseStatus is the real outcome
+    const status = data?.responseStatus;
+    if (status !== undefined && Number(status) !== 200) {
+      console.warn('MyMemory API error:', data?.responseDetails || status);
+      return '';
+    }
     return data?.responseData?.translatedText || '';
   } catch (error) {
     console.warn('Failed to fetch note translation:', error);

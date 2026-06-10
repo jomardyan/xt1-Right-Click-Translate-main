@@ -27,7 +27,7 @@ beforeAll(() => {
     // Ignore errors from the top-level listeners
   }
   bg = vm.runInContext(
-    '({ buildUrl, buildPageUrl, sanitizeText, sanitizeNote, sanitizeHistory, clampNumber, normalizeMenuLimit, normalizePreviewLimit, isValidPageUrl, getLanguageLabel, getProviderLabel })',
+    '({ buildUrl, buildPageUrl, sanitizeText, sanitizeNote, sanitizeHistory, clampNumber, normalizeMenuLimit, normalizePreviewLimit, isValidPageUrl, getLanguageLabel, getProviderLabel, detectTextLanguage, fetchPreview })',
     ctx
   );
 });
@@ -290,5 +290,108 @@ describe('getProviderLabel', () => {
 
   test('returns google label for unknown provider', () => {
     expect(bg.getProviderLabel('unknown')).toBe('Google');
+  });
+});
+
+describe('detectTextLanguage', () => {
+  test('resolves the top detected language', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'it', percentage: 95 }] })
+    );
+    await expect(bg.detectTextLanguage('ciao')).resolves.toBe('it');
+  });
+
+  test('maps bare zh to zh-CN', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'zh', percentage: 95 }] })
+    );
+    await expect(bg.detectTextLanguage('你好')).resolves.toBe('zh-CN');
+  });
+
+  test('resolves null when detection is inconclusive', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [{ language: 'und', percentage: 0 }] })
+    );
+    await expect(bg.detectTextLanguage('???')).resolves.toBeNull();
+  });
+
+  test('resolves null when no languages are returned', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    await expect(bg.detectTextLanguage('')).resolves.toBeNull();
+  });
+});
+
+describe('fetchPreview', () => {
+  const mockFetchResponse = (body, ok = true) => {
+    ctx.fetch.mockResolvedValue({
+      ok,
+      json: () => Promise.resolve(body)
+    });
+  };
+
+  beforeEach(() => {
+    ctx.fetch.mockReset();
+  });
+
+  test('never sends auto as source language; uses detected language instead', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'it', percentage: 95 }] })
+    );
+    mockFetchResponse({
+      responseStatus: 200,
+      responseData: { translatedText: 'hello' }
+    });
+
+    const result = await bg.fetchPreview('auto', 'en', 'ciao');
+    expect(result).toBe('hello');
+    const calledUrl = ctx.fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('langpair=it|en');
+    expect(calledUrl).not.toContain('auto');
+  });
+
+  test('skips the request when auto detection fails', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+
+    const result = await bg.fetchPreview('auto', 'en', '???');
+    expect(result).toBeNull();
+    expect(ctx.fetch).not.toHaveBeenCalled();
+  });
+
+  test('returns the original text when source equals target', async () => {
+    const result = await bg.fetchPreview('en', 'en', 'hello there');
+    expect(result).toBe('hello there');
+    expect(ctx.fetch).not.toHaveBeenCalled();
+  });
+
+  test('returns null instead of surfacing MyMemory error text', async () => {
+    mockFetchResponse({
+      responseStatus: '403',
+      responseDetails: "'AUTO' IS AN INVALID SOURCE LANGUAGE",
+      responseData: { translatedText: "'AUTO' IS AN INVALID SOURCE LANGUAGE ..." }
+    });
+
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBeNull();
+  });
+
+  test('returns translation for an explicit source language', async () => {
+    mockFetchResponse({
+      responseStatus: 200,
+      responseData: { translatedText: 'hello' }
+    });
+
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBe('hello');
+    expect(ctx.fetch.mock.calls[0][0]).toContain('langpair=fr|en');
+  });
+
+  test('returns null on non-ok HTTP response', async () => {
+    mockFetchResponse({}, false);
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBeNull();
   });
 });

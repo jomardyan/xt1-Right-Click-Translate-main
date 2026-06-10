@@ -115,6 +115,14 @@
     "message": "In the current tab",
     "description": "Open mode option"
   },
+  "openModeInline": {
+    "message": "Inline (on page)",
+    "description": "Open mode option — show translation as a popup directly on the page"
+  },
+  "hintOpenModeInline": {
+    "message": "Inline mode shows a popup on the page using the MyMemory API. No tab is opened.",
+    "description": "Hint shown when the inline open mode is selected"
+  },
   "labelTheme": {
     "message": "Theme",
     "description": "Theme label"
@@ -526,5 +534,9 @@
   "popupOpenModeCurrentTab": {
     "message": "Current tab",
     "description": "Popup open mode label for current tab"
+  },
+  "popupOpenModeInline": {
+    "message": "Inline",
+    "description": "Popup open mode label for inline translation on the page"
   }
 }

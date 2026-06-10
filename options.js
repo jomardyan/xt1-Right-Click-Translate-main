@@ -158,6 +158,12 @@ function updatePreviewControls() {
   elements.previewField.classList.toggle('is-disabled', !enabled);
 }
 
+function updateInlineModeHint() {
+  if (!elements.hintInlineMode) return;
+  const isInline = getRadioValue('openMode', DEFAULT_OPTIONS.openMode) === 'inline';
+  elements.hintInlineMode.style.display = isInline ? '' : 'none';
+}
+
 function updateHistoryControls() {
   const enabled = elements.saveHistory.checked;
   elements.clearHistory.disabled = !enabled;
@@ -953,6 +959,7 @@ function applyOptionsToForm(options) {
   renderHistorySummary(elements.cachedHistory, elements.saveHistory.checked);
   updatePreviewControls();
   updateHistoryControls();
+  updateInlineModeHint();
 }
 
 async function resetDefaults() {
@@ -1191,6 +1198,7 @@ function initElements() {
   elements.importNotes = document.getElementById('importNotes');
   elements.importFileInput = document.getElementById('importFileInput');
   elements.openModeInputs = document.querySelectorAll('input[name="openMode"]');
+  elements.hintInlineMode = document.getElementById('hintInlineMode');
   elements.themeModeInputs = document.querySelectorAll('input[name="themeMode"]');
   elements.targetLanguages = [];
   elements.cachedHistory = [];
@@ -1224,6 +1232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   elements.openModeInputs.forEach((input) => {
     input.addEventListener('change', () => {
+      updateInlineModeHint();
       markDirty();
     });
   });

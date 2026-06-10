@@ -515,6 +515,47 @@ const handleTranslation = async ({ text, targetLang, tab }) => {
       }
     });
 
+    if (openMode === 'inline') {
+      if (tab?.id) {
+        const providerLabel = getProviderLabel(provider);
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'inlineTranslation',
+          phase: 'loading',
+          originalText: sanitizedText,
+          providerLabel
+        }).catch(() => {});
+
+        fetchPreview(sourceLang, targetLang, sanitizedText)
+          .then((result) => {
+            if (result) {
+              chrome.tabs.sendMessage(tab.id, {
+                type: 'inlineTranslation',
+                phase: 'result',
+                originalText: sanitizedText,
+                translatedText: result,
+                targetLang,
+                providerLabel
+              }).catch(() => {});
+            } else {
+              chrome.tabs.sendMessage(tab.id, {
+                type: 'inlineTranslation',
+                phase: 'error',
+                error: 'Translation unavailable.'
+              }).catch(() => {});
+            }
+          })
+          .catch(() => {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'inlineTranslation',
+              phase: 'error',
+              error: 'Translation failed.'
+            }).catch(() => {});
+          });
+      }
+      recordHistory({ sourceLang, targetLang, provider });
+      return;
+    }
+
     if (previewEnabled && sanitizedText.length <= previewLimit) {
       fetchPreview(sourceLang, targetLang, sanitizedText)
         .then((result) => {

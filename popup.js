@@ -80,6 +80,9 @@ const getOpenModeLabel = (mode) => {
   if (mode === 'currentTab') {
     return getMessage('popupOpenModeCurrentTab', null, 'Current tab');
   }
+  if (mode === 'inline') {
+    return getMessage('popupOpenModeInline', null, 'Inline');
+  }
   return getMessage('popupOpenModeNewTab', null, 'New tab');
 };
 

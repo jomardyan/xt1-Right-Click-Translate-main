@@ -31,7 +31,8 @@ jobs:
             popup.html \
             popup.css \
             icons/ \
-            _locales/
+            _locales/ \
+            vendor/
 
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4

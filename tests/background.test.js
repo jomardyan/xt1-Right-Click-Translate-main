@@ -10,7 +10,10 @@ let ctx;
 let bg;
 
 beforeAll(() => {
-  const src = fs.readFileSync(path.join(__dirname, '../background.js'), 'utf8');
+  // vm scripts cannot contain ES module syntax; drop the vendor import
+  const src = fs
+    .readFileSync(path.join(__dirname, '../background.js'), 'utf8')
+    .replace(/^import\s.*$/gm, '');
   ctx = vm.createContext({
     chrome: global.chrome,
     fetch: jest.fn(),
@@ -27,7 +30,7 @@ beforeAll(() => {
     // Ignore errors from the top-level listeners
   }
   bg = vm.runInContext(
-    '({ buildUrl, buildPageUrl, sanitizeText, sanitizeNote, sanitizeHistory, clampNumber, normalizeMenuLimit, normalizePreviewLimit, isValidPageUrl, getLanguageLabel, getProviderLabel })',
+    '({ buildUrl, buildPageUrl, sanitizeText, sanitizeNote, sanitizeHistory, clampNumber, normalizeMenuLimit, normalizePreviewLimit, isValidPageUrl, getLanguageLabel, getProviderLabel, detectTextLanguage, fetchPreview })',
     ctx
   );
 });
@@ -290,5 +293,269 @@ describe('getProviderLabel', () => {
 
   test('returns google label for unknown provider', () => {
     expect(bg.getProviderLabel('unknown')).toBe('Google');
+  });
+});
+
+describe('detectTextLanguage', () => {
+  test('resolves the top detected language', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'it', percentage: 95 }] })
+    );
+    await expect(bg.detectTextLanguage('ciao')).resolves.toBe('it');
+  });
+
+  test('maps bare zh to zh-CN', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'zh', percentage: 95 }] })
+    );
+    await expect(bg.detectTextLanguage('你好')).resolves.toBe('zh-CN');
+  });
+
+  test('resolves null when detection is inconclusive', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [{ language: 'und', percentage: 0 }] })
+    );
+    await expect(bg.detectTextLanguage('???')).resolves.toBeNull();
+  });
+
+  test('resolves null when no languages are returned', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    await expect(bg.detectTextLanguage('')).resolves.toBeNull();
+  });
+});
+
+describe('fetchPreview', () => {
+  const mockFetchResponse = (body, ok = true) => {
+    ctx.fetch.mockResolvedValue({
+      ok,
+      json: () => Promise.resolve(body)
+    });
+  };
+
+  beforeEach(() => {
+    ctx.fetch.mockReset();
+  });
+
+  test('never sends auto as source language; uses detected language instead', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'it', percentage: 95 }] })
+    );
+    mockFetchResponse({
+      responseStatus: 200,
+      responseData: { translatedText: 'hello' }
+    });
+
+    const result = await bg.fetchPreview('auto', 'en', 'ciao');
+    expect(result).toBe('hello');
+    const calledUrl = ctx.fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('langpair=it|en');
+    expect(calledUrl).not.toContain('auto');
+  });
+
+  test('skips the request when auto detection fails', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+
+    const result = await bg.fetchPreview('auto', 'en', '???');
+    expect(result).toBeNull();
+    expect(ctx.fetch).not.toHaveBeenCalled();
+  });
+
+  test('returns the original text when source equals target', async () => {
+    const result = await bg.fetchPreview('en', 'en', 'hello there');
+    expect(result).toBe('hello there');
+    expect(ctx.fetch).not.toHaveBeenCalled();
+  });
+
+  test('returns null instead of surfacing MyMemory error text', async () => {
+    mockFetchResponse({
+      responseStatus: '403',
+      responseDetails: "'AUTO' IS AN INVALID SOURCE LANGUAGE",
+      responseData: { translatedText: "'AUTO' IS AN INVALID SOURCE LANGUAGE ..." }
+    });
+
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBeNull();
+  });
+
+  test('returns translation for an explicit source language', async () => {
+    mockFetchResponse({
+      responseStatus: 200,
+      responseData: { translatedText: 'hello' }
+    });
+
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBe('hello');
+    expect(ctx.fetch.mock.calls[0][0]).toContain('langpair=fr|en');
+  });
+
+  test('returns null on non-ok HTTP response', async () => {
+    mockFetchResponse({}, false);
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBeNull();
+  });
+});
+
+describe('language detection chain', () => {
+  const resetBuiltinDetectorCache = () => {
+    vm.runInContext('builtinDetectorPromise = null', ctx);
+  };
+
+  afterEach(() => {
+    delete ctx.LanguageDetector;
+    delete ctx.eld;
+    resetBuiltinDetectorCache();
+  });
+
+  test('prefers the built-in AI LanguageDetector when available', async () => {
+    ctx.LanguageDetector = {
+      availability: () => Promise.resolve('available'),
+      create: () =>
+        Promise.resolve({
+          detect: () => Promise.resolve([{ detectedLanguage: 'pl', confidence: 0.92 }])
+        })
+    };
+    resetBuiltinDetectorCache();
+
+    await expect(bg.detectTextLanguage('czesc swiecie')).resolves.toBe('pl');
+    expect(chrome.i18n.detectLanguage).not.toHaveBeenCalled();
+  });
+
+  test('skips the built-in AI detector when its model is not downloaded', async () => {
+    ctx.LanguageDetector = {
+      availability: () => Promise.resolve('downloadable'),
+      create: jest.fn()
+    };
+    resetBuiltinDetectorCache();
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'fr', percentage: 90 }] })
+    );
+
+    await expect(bg.detectTextLanguage('bonjour')).resolves.toBe('fr');
+    expect(ctx.LanguageDetector.create).not.toHaveBeenCalled();
+  });
+
+  test('ignores low-confidence built-in AI results', async () => {
+    ctx.LanguageDetector = {
+      availability: () => Promise.resolve('available'),
+      create: () =>
+        Promise.resolve({
+          detect: () => Promise.resolve([{ detectedLanguage: 'pl', confidence: 0.1 }])
+        })
+    };
+    resetBuiltinDetectorCache();
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'de', percentage: 80 }] })
+    );
+
+    await expect(bg.detectTextLanguage('hm')).resolves.toBe('de');
+  });
+
+  test('falls back to bundled ELD when other detectors fail', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    ctx.eld = { detect: () => ({ language: 'tr' }) };
+
+    await expect(bg.detectTextLanguage('merhaba dunya')).resolves.toBe('tr');
+  });
+
+  test('normalizes zh from ELD to zh-CN', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    ctx.eld = { detect: () => ({ language: 'zh' }) };
+
+    await expect(bg.detectTextLanguage('ni hao')).resolves.toBe('zh-CN');
+  });
+
+  test('resolves null when every backend fails', async () => {
+    chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+      cb({ isReliable: false, languages: [] })
+    );
+    ctx.eld = { detect: () => ({ language: '' }) };
+
+    await expect(bg.detectTextLanguage('???')).resolves.toBeNull();
+  });
+});
+
+describe('auto source handling in provider URLs', () => {
+  test('bing omits the from value when source is auto', () => {
+    const url = bg.buildUrl('bing', 'auto', 'fr', 'bonjour');
+    expect(url).toContain('from=&to=fr');
+    expect(url).not.toContain('from=auto');
+  });
+
+  test('yandex omits source_lang when source is auto', () => {
+    const url = bg.buildUrl('yandex', 'auto', 'fr', 'bonjour');
+    expect(url).toContain('target_lang=fr');
+    expect(url).not.toContain('source_lang');
+  });
+
+  test('yandex keeps source_lang for explicit source', () => {
+    const url = bg.buildUrl('yandex', 'ru', 'en', 'privet');
+    expect(url).toContain('source_lang=ru');
+    expect(url).toContain('target_lang=en');
+  });
+
+  test('yandex page url names only the target when source is auto', () => {
+    const url = bg.buildPageUrl('yandex', 'auto', 'fr', 'https://example.com');
+    expect(url).toContain('lang=fr&');
+    expect(url).not.toContain('auto');
+  });
+
+  test('bing page url omits the from value when source is auto', () => {
+    const url = bg.buildPageUrl('bing', 'auto', 'fr', 'https://example.com');
+    expect(url).toContain('from=&to=fr');
+  });
+});
+
+describe('fetchPreview API limits and connectivity state', () => {
+  beforeEach(() => {
+    ctx.fetch.mockReset();
+  });
+
+  test('truncates the query to the MyMemory 500 char limit', async () => {
+    ctx.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ responseStatus: 200, responseData: { translatedText: 'x' } })
+    });
+
+    const longText = 'a'.repeat(800);
+    await bg.fetchPreview('fr', 'en', longText);
+    const calledUrl = ctx.fetch.mock.calls[0][0];
+    const q = new URL(calledUrl).searchParams.get('q');
+    expect(q).toHaveLength(500);
+  });
+
+  test('records offline state in storage.local on network failure', async () => {
+    ctx.fetch.mockRejectedValue(new Error('network down'));
+
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBeNull();
+    expect(chrome.storage.local.set).toHaveBeenCalledWith(
+      { isOnline: false },
+      expect.any(Function)
+    );
+    expect(chrome.storage.sync.set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ isOnline: false }),
+      expect.any(Function)
+    );
+  });
+
+  test('records online state in storage.local on success', async () => {
+    ctx.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ responseStatus: 200, responseData: { translatedText: 'hi' } })
+    });
+
+    await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(chrome.storage.local.set).toHaveBeenCalledWith(
+      { isOnline: true },
+      expect.any(Function)
+    );
   });
 });

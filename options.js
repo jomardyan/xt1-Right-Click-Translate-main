@@ -34,6 +34,7 @@ const MENU_LANG_MAX = 12;
 const PREVIEW_TEXT_MIN = 60;
 const PREVIEW_TEXT_MAX = 500;
 const PREVIEW_API_URL = 'https://api.mymemory.translated.net/get';
+const PREVIEW_QUERY_LIMIT = 500; // MyMemory rejects queries over 500 chars
 const NOTES_STORAGE_KEY = 'savedNotes';
 const NOTES_MAX_ITEMS = 200;
 const NOTES_TEXT_LIMIT = 2000;
@@ -830,14 +831,93 @@ function clearNoteForm() {
   elements.noteSource.focus();
 }
 
+// MyMemory rejects 'auto' as a source language; resolve it before
+// building the langpair. Detection backends, in order of accuracy:
+// 1. Chrome's built-in AI LanguageDetector (Chrome 138+), used only when
+//    its model is already available so we never trigger a download
+// 2. chrome.i18n.detectLanguage (CLD)
+// 3. Bundled ELD library (loaded via <script> in options.html), offline
+let builtinDetectorPromise = null;
+
+async function detectWithBuiltinAI(text) {
+  try {
+    if (typeof LanguageDetector === 'undefined') return null;
+    if (!builtinDetectorPromise) {
+      builtinDetectorPromise = LanguageDetector.availability()
+        .then((availability) =>
+          availability === 'available' ? LanguageDetector.create() : null
+        )
+        .catch(() => null);
+    }
+    const detector = await builtinDetectorPromise;
+    if (!detector) return null;
+    const results = await detector.detect(text);
+    const top = results?.[0];
+    if (!top?.detectedLanguage || top.detectedLanguage === 'und') return null;
+    if (typeof top.confidence === 'number' && top.confidence < 0.4) return null;
+    return top.detectedLanguage;
+  } catch (error) {
+    console.warn('Built-in AI language detection failed:', error);
+    return null;
+  }
+}
+
+function detectWithChromeI18n(text) {
+  return new Promise((resolve) => {
+    try {
+      if (!chrome?.i18n?.detectLanguage) {
+        resolve(null);
+        return;
+      }
+      chrome.i18n.detectLanguage(text, (result) => {
+        const candidate = result?.languages?.[0]?.language;
+        resolve(candidate && candidate !== 'und' ? candidate : null);
+      });
+    } catch (error) {
+      console.warn('chrome.i18n language detection failed:', error);
+      resolve(null);
+    }
+  });
+}
+
+function detectWithEld(text) {
+  try {
+    if (typeof eld === 'undefined' || !eld?.detect) return null;
+    return eld.detect(text)?.language || null;
+  } catch (error) {
+    console.warn('ELD language detection failed:', error);
+    return null;
+  }
+}
+
+async function detectTextLanguage(text) {
+  const detected =
+    (await detectWithBuiltinAI(text)) ||
+    (await detectWithChromeI18n(text)) ||
+    detectWithEld(text);
+  if (!detected) return null;
+  // detectors report bare 'zh'; MyMemory expects a region subtag
+  return detected === 'zh' ? 'zh-CN' : detected;
+}
+
 async function fetchNoteTranslation(sourceLang, targetLang, text) {
   try {
-    const source = sourceLang === 'auto' ? 'auto' : sourceLang;
+    const source = sourceLang === 'auto' ? await detectTextLanguage(text) : sourceLang;
+    if (!source) return '';
+    if (source.toLowerCase() === String(targetLang).toLowerCase()) return text;
     const pair = `${source}|${targetLang}`;
-    const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(text)}&langpair=${pair}`;
+    const query = text.slice(0, PREVIEW_QUERY_LIMIT);
+    const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(query)}&langpair=${pair}`;
     const res = await fetch(url);
     if (!res.ok) return '';
     const data = await res.json();
+    // MyMemory returns HTTP 200 with the error text in translatedText;
+    // responseStatus is the real outcome
+    const status = data?.responseStatus;
+    if (status !== undefined && Number(status) !== 200) {
+      console.warn('MyMemory API error:', data?.responseDetails || status);
+      return '';
+    }
     return data?.responseData?.translatedText || '';
   } catch (error) {
     console.warn('Failed to fetch note translation:', error);

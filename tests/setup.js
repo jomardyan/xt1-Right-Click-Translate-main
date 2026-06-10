@@ -49,7 +49,10 @@ global.chrome = {
     executeScript: jest.fn(() => Promise.resolve([]))
   },
   i18n: {
-    getMessage: jest.fn((key, subs, fallback) => fallback || key)
+    getMessage: jest.fn((key, subs, fallback) => fallback || key),
+    detectLanguage: jest.fn((text, cb) =>
+      cb({ isReliable: true, languages: [{ language: 'en', percentage: 100 }] })
+    )
   }
 };
 
@@ -68,4 +71,8 @@ beforeEach(() => {
   global.chrome.tabs.query.mockResolvedValue([]);
   global.chrome.scripting.executeScript.mockResolvedValue([]);
   global.chrome.runtime.lastError = null;
+  global.chrome.i18n.getMessage.mockImplementation((key, subs, fallback) => fallback || key);
+  global.chrome.i18n.detectLanguage.mockImplementation((text, cb) =>
+    cb({ isReliable: true, languages: [{ language: 'en', percentage: 100 }] })
+  );
 });

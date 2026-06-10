@@ -253,6 +253,64 @@ button.secondary:hover {
   }
 }
 
+[data-theme="dark"] {
+  --bg: #101827;
+  --panel: #111a2d;
+  --fg: #e6edf7;
+  --muted: #9aa6ba;
+  --accent: #6b8cff;
+  --border: #1f2b44;
+  --shadow: 0 14px 26px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] button.primary {
+  color: #101827;
+}
+
+[data-theme="dark"] button.secondary {
+  background: rgba(107, 140, 255, 0.15);
+  color: var(--accent);
+  border-color: rgba(107, 140, 255, 0.3);
+}
+
+[data-theme="dark"] .last-translation-text {
+  background: rgba(107, 140, 255, 0.1);
+}
+
+[data-theme="dark"] .status-indicator {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+
+[data-theme="light"] {
+  --bg: #f3f6fb;
+  --panel: #ffffff;
+  --fg: #1f2937;
+  --muted: #5b6b7f;
+  --accent: #2f6fe0;
+  --border: #d7e1ec;
+  --shadow: 0 14px 26px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] button.primary {
+  color: #ffffff;
+}
+
+[data-theme="light"] button.secondary {
+  background: rgba(47, 111, 224, 0.1);
+  color: var(--accent);
+  border-color: rgba(47, 111, 224, 0.3);
+}
+
+[data-theme="light"] .last-translation-text {
+  background: rgba(47, 111, 224, 0.08);
+}
+
+[data-theme="light"] .status-indicator {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
 /* Improved accessibility - focus indicators */
 button:focus-visible,
 input:focus-visible,

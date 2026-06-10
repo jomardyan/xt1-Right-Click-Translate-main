@@ -297,7 +297,7 @@ function renderTargets() {
     const upBtn = document.createElement('button');
     upBtn.type = 'button';
     upBtn.className = 'chip-action chip-move';
-    upBtn.textContent = 'up';
+    upBtn.textContent = '↑';
     upBtn.disabled = index === 0;
     upBtn.setAttribute(
       'aria-label',
@@ -308,7 +308,7 @@ function renderTargets() {
     const downBtn = document.createElement('button');
     downBtn.type = 'button';
     downBtn.className = 'chip-action chip-move';
-    downBtn.textContent = 'dn';
+    downBtn.textContent = '↓';
     downBtn.disabled = index === elements.targetLanguages.length - 1;
     downBtn.setAttribute(
       'aria-label',
@@ -319,7 +319,7 @@ function renderTargets() {
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'chip-action chip-remove';
-    removeBtn.textContent = 'x';
+    removeBtn.textContent = '×';
     removeBtn.setAttribute(
       'aria-label',
       getMessage('ariaRemoveLanguage', [code], `Remove ${code}`)
@@ -1050,7 +1050,7 @@ async function exportNotes() {
   try {
     const { [NOTES_STORAGE_KEY]: notes = [] } = await getNotes();
     if (notes.length === 0) {
-      setStatus('No notes to export', 'info');
+      setStatus(getMessage('statusNoNotesToExport', null, 'No notes to export'), 'info');
       return;
     }
 
@@ -1064,10 +1064,10 @@ async function exportNotes() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setStatus('Notes exported', 'success');
+    setStatus(getMessage('statusNotesExported', null, 'Notes exported'), 'success');
   } catch (error) {
     console.error('Failed to export notes:', error);
-    setStatus('Export failed', 'error');
+    setStatus(getMessage('statusExportFailed', null, 'Export failed'), 'error');
   }
 }
 
@@ -1088,7 +1088,7 @@ async function handleImportFile(event) {
     const imported = JSON.parse(text);
 
     if (!Array.isArray(imported)) {
-      setStatus('Invalid file format', 'error');
+      setStatus(getMessage('statusInvalidFileFormat', null, 'Invalid file format'), 'error');
       return;
     }
 
@@ -1096,7 +1096,7 @@ async function handleImportFile(event) {
     const sanitized = imported.map(sanitizeNote).filter(Boolean);
     
     if (sanitized.length === 0) {
-      setStatus('No valid notes found', 'error');
+      setStatus(getMessage('statusNoValidNotes', null, 'No valid notes found in file'), 'error');
       return;
     }
 
@@ -1107,10 +1107,13 @@ async function handleImportFile(event) {
 
     await setNotes(merged);
     await refreshNotes();
-    setStatus(`Imported ${newNotes.length} notes`, 'success');
+    setStatus(
+      getMessage('statusNotesImported', [String(newNotes.length)], `Imported ${newNotes.length} notes`),
+      'success'
+    );
   } catch (error) {
     console.error('Failed to import notes:', error);
-    setStatus('Import failed - invalid JSON', 'error');
+    setStatus(getMessage('statusImportFailed', null, 'Import failed - invalid JSON'), 'error');
   } finally {
     event.target.value = '';
   }

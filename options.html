@@ -229,26 +229,26 @@
 
       <details class="advanced" id="statisticsSection">
         <summary>
-          <span>Translation Statistics</span>
-          <span class="summary-hint">Your usage insights</span>
+          <span data-i18n="statsTitle">Translation Statistics</span>
+          <span class="summary-hint" data-i18n="statsHint">Your usage insights</span>
         </summary>
         <div class="advanced-body">
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-value" id="totalTranslations">0</div>
-              <div class="stat-label">Total Translations</div>
+              <div class="stat-label" data-i18n="statLabelTranslations">Total Translations</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="totalNotes">0</div>
-              <div class="stat-label">Saved Notes</div>
+              <div class="stat-label" data-i18n="statLabelNotes">Saved Notes</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="topProvider">-</div>
-              <div class="stat-label">Favorite Provider</div>
+              <div class="stat-label" data-i18n="statLabelProvider">Favorite Provider</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="topLanguage">-</div>
-              <div class="stat-label">Most Used Language</div>
+              <div class="stat-label" data-i18n="statLabelLanguage">Most Used Language</div>
             </div>
           </div>
         </div>
@@ -270,6 +270,7 @@
               id="exportNotes"
               class="ghost-button"
               title="Export notes as JSON"
+              data-i18n-title="exportNotesTitle"
             >
               ⬇ Export
             </button>
@@ -278,6 +279,7 @@
               id="importNotes"
               class="ghost-button"
               title="Import notes from JSON"
+              data-i18n-title="importNotesTitle"
             >
               ⬆ Import
             </button>

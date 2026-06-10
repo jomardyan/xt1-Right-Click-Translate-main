@@ -33,8 +33,7 @@ const DEFAULT_OPTIONS = {
   previewEnabled: true,
   sourceLang: 'auto',
   themeMode: 'auto',
-  lastTranslation: null,
-  isOnline: true
+  lastTranslation: null
 };
 
 const elements = {
@@ -124,12 +123,14 @@ const refreshLastTranslation = (options) => {
 };
 
 const refreshOnlineStatus = (options) => {
-  const isOnline = options.isOnline !== false;
-  if (!isOnline && options.previewEnabled) {
-    elements.onlineStatus.classList.remove('hidden');
-  } else {
-    elements.onlineStatus.classList.add('hidden');
-  }
+  // Connectivity state is device-specific, so it lives in storage.local.
+  chrome.storage.local.get({ isOnline: true }, ({ isOnline }) => {
+    if (isOnline === false && options.previewEnabled) {
+      elements.onlineStatus.classList.remove('hidden');
+    } else {
+      elements.onlineStatus.classList.add('hidden');
+    }
+  });
 };
 
 const refreshSummary = async () => {
@@ -183,6 +184,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (sourceLang === 'auto') {
         setStatus('Cannot swap from auto-detect', 'error');
+        return;
+      }
+
+      if (!primaryTarget) {
+        setStatus('No target language set', 'error');
         return;
       }
 

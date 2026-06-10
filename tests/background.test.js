@@ -481,3 +481,81 @@ describe('language detection chain', () => {
     await expect(bg.detectTextLanguage('???')).resolves.toBeNull();
   });
 });
+
+describe('auto source handling in provider URLs', () => {
+  test('bing omits the from value when source is auto', () => {
+    const url = bg.buildUrl('bing', 'auto', 'fr', 'bonjour');
+    expect(url).toContain('from=&to=fr');
+    expect(url).not.toContain('from=auto');
+  });
+
+  test('yandex omits source_lang when source is auto', () => {
+    const url = bg.buildUrl('yandex', 'auto', 'fr', 'bonjour');
+    expect(url).toContain('target_lang=fr');
+    expect(url).not.toContain('source_lang');
+  });
+
+  test('yandex keeps source_lang for explicit source', () => {
+    const url = bg.buildUrl('yandex', 'ru', 'en', 'privet');
+    expect(url).toContain('source_lang=ru');
+    expect(url).toContain('target_lang=en');
+  });
+
+  test('yandex page url names only the target when source is auto', () => {
+    const url = bg.buildPageUrl('yandex', 'auto', 'fr', 'https://example.com');
+    expect(url).toContain('lang=fr&');
+    expect(url).not.toContain('auto');
+  });
+
+  test('bing page url omits the from value when source is auto', () => {
+    const url = bg.buildPageUrl('bing', 'auto', 'fr', 'https://example.com');
+    expect(url).toContain('from=&to=fr');
+  });
+});
+
+describe('fetchPreview API limits and connectivity state', () => {
+  beforeEach(() => {
+    ctx.fetch.mockReset();
+  });
+
+  test('truncates the query to the MyMemory 500 char limit', async () => {
+    ctx.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ responseStatus: 200, responseData: { translatedText: 'x' } })
+    });
+
+    const longText = 'a'.repeat(800);
+    await bg.fetchPreview('fr', 'en', longText);
+    const calledUrl = ctx.fetch.mock.calls[0][0];
+    const q = new URL(calledUrl).searchParams.get('q');
+    expect(q).toHaveLength(500);
+  });
+
+  test('records offline state in storage.local on network failure', async () => {
+    ctx.fetch.mockRejectedValue(new Error('network down'));
+
+    const result = await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(result).toBeNull();
+    expect(chrome.storage.local.set).toHaveBeenCalledWith(
+      { isOnline: false },
+      expect.any(Function)
+    );
+    expect(chrome.storage.sync.set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ isOnline: false }),
+      expect.any(Function)
+    );
+  });
+
+  test('records online state in storage.local on success', async () => {
+    ctx.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ responseStatus: 200, responseData: { translatedText: 'hi' } })
+    });
+
+    await bg.fetchPreview('fr', 'en', 'bonjour');
+    expect(chrome.storage.local.set).toHaveBeenCalledWith(
+      { isOnline: true },
+      expect.any(Function)
+    );
+  });
+});

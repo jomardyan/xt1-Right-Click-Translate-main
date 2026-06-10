@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/test.yml/badge.svg)](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/test.yml)
 [![Build ZIP](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/release.yml/badge.svg)](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/release.yml)
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](manifest.json)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green.svg)](https://developer.chrome.com/docs/extensions/mv3/)
 [![License](https://img.shields.io/github/license/jomardyan/xt1-Right-Click-Translate-main)](LICENSE)
 

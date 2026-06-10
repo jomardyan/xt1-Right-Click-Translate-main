@@ -14,6 +14,7 @@ const DEFAULT_PREVIEW_TEXT_LIMIT = 180;
 const MIN_PREVIEW_TEXT_LIMIT = 60;
 const MAX_PREVIEW_TEXT_LIMIT = 500;
 const PREVIEW_API_URL = 'https://api.mymemory.translated.net/get';
+const PREVIEW_QUERY_LIMIT = 500; // MyMemory rejects queries over 500 chars
 const NOTES_STORAGE_KEY = 'savedNotes';
 const NOTES_MAX_ITEMS = 200;
 const NOTES_TEXT_LIMIT = 2000;
@@ -57,8 +58,7 @@ const DEFAULT_OPTIONS = {
   previewTextLimit: DEFAULT_PREVIEW_TEXT_LIMIT,
   notesAutoTranslate: true,
   translationHistory: [],
-  lastTranslation: null,
-  isOnline: true
+  lastTranslation: null
 };
 
 const getMessage = (key, substitutions, fallback) => {
@@ -115,6 +115,13 @@ const getOptions = () =>
 const setOptions = (values) =>
   new Promise((resolve) => {
     chrome.storage.sync.set(values, resolve);
+  });
+
+// Device-specific connectivity state; kept in storage.local so it
+// neither syncs across devices nor consumes sync write quota.
+const setOnlineState = (isOnline) =>
+  new Promise((resolve) => {
+    chrome.storage.local.set({ isOnline }, resolve);
   });
 
 const clampNumber = (value, min, max, fallback) => {
@@ -235,19 +242,25 @@ const sanitizeText = (text) => {
  */
 const buildUrl = (provider, sourceLang, targetLang, query) => {
   const source = sourceLang || 'auto';
+  const isAuto = source === 'auto';
   const safeSource = safeEncodeURIComponent(source);
   const safeTarget = safeEncodeURIComponent(targetLang);
   const safeQuery = query; // Already encoded by caller
-  
+  // Bing auto-detects with an empty "from"; Yandex auto-detects when
+  // source_lang is omitted. Neither accepts the literal value "auto".
+  const bingFrom = isAuto ? '' : safeSource;
+
   const providers = {
     deepl: () =>
       `https://www.deepl.com/translator#${safeSource}/${safeTarget}/${safeQuery}`,
     bing: () =>
-      `https://www.bing.com/translator?text=${safeQuery}&from=${safeSource}&to=${safeTarget}`,
+      `https://www.bing.com/translator?text=${safeQuery}&from=${bingFrom}&to=${safeTarget}`,
     yandex: () =>
-      `https://translate.yandex.com/?source_lang=${safeSource}&target_lang=${safeTarget}&text=${safeQuery}`,
+      isAuto
+        ? `https://translate.yandex.com/?target_lang=${safeTarget}&text=${safeQuery}`
+        : `https://translate.yandex.com/?source_lang=${safeSource}&target_lang=${safeTarget}&text=${safeQuery}`,
     microsoft: () =>
-      `https://www.bing.com/translator?text=${safeQuery}&from=${safeSource}&to=${safeTarget}`,
+      `https://www.bing.com/translator?text=${safeQuery}&from=${bingFrom}&to=${safeTarget}`,
     google: () =>
       `https://translate.google.com/?sl=${safeSource}&tl=${safeTarget}&text=${safeQuery}&op=translate`
   };
@@ -259,19 +272,24 @@ const buildUrl = (provider, sourceLang, targetLang, query) => {
  */
 const buildPageUrl = (provider, sourceLang, targetLang, pageUrl) => {
   const source = sourceLang || 'auto';
+  const isAuto = source === 'auto';
   const safeSource = safeEncodeURIComponent(source);
   const safeTarget = safeEncodeURIComponent(targetLang);
   const safePageUrl = safeEncodeURIComponent(pageUrl);
-  
+  // Bing auto-detects with an empty "from"; Yandex auto-detects when
+  // the lang pair only names the target. Neither accepts "auto".
+  const bingFrom = isAuto ? '' : safeSource;
+  const yandexLang = isAuto ? safeTarget : `${safeSource}-${safeTarget}`;
+
   const providers = {
     deepl: () =>
       `https://www.deepl.com/translator#${safeSource}/${safeTarget}/${safePageUrl}`,
     bing: () =>
-      `https://www.bing.com/translator?from=${safeSource}&to=${safeTarget}&url=${safePageUrl}`,
+      `https://www.bing.com/translator?from=${bingFrom}&to=${safeTarget}&url=${safePageUrl}`,
     yandex: () =>
-      `https://translate.yandex.com/translate?lang=${safeSource}-${safeTarget}&url=${safePageUrl}`,
+      `https://translate.yandex.com/translate?lang=${yandexLang}&url=${safePageUrl}`,
     microsoft: () =>
-      `https://www.bing.com/translator?from=${safeSource}&to=${safeTarget}&url=${safePageUrl}`,
+      `https://www.bing.com/translator?from=${bingFrom}&to=${safeTarget}&url=${safePageUrl}`,
     google: () =>
       `https://translate.google.com/translate?sl=${safeSource}&tl=${safeTarget}&u=${safePageUrl}`
   };
@@ -554,13 +572,14 @@ const fetchPreview = async (sourceLang, targetLang, text) => {
     if (!source) return null;
     if (source.toLowerCase() === String(targetLang).toLowerCase()) return text;
     const pair = `${source}|${targetLang}`;
-    const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(text)}&langpair=${pair}`;
+    const query = text.slice(0, PREVIEW_QUERY_LIMIT);
+    const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(query)}&langpair=${pair}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) {
-      await setOptions({ isOnline: false });
+      await setOnlineState(false);
       return null;
     }
-    await setOptions({ isOnline: true });
+    await setOnlineState(true);
     const data = await res.json();
     // MyMemory returns HTTP 200 with the error text in translatedText;
     // responseStatus is the real outcome
@@ -572,7 +591,7 @@ const fetchPreview = async (sourceLang, targetLang, text) => {
     return data?.responseData?.translatedText || null;
   } catch (error) {
     console.warn('Failed to fetch preview:', error);
-    await setOptions({ isOnline: false });
+    await setOnlineState(false);
     return null;
   }
 };

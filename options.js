@@ -34,6 +34,7 @@ const MENU_LANG_MAX = 12;
 const PREVIEW_TEXT_MIN = 60;
 const PREVIEW_TEXT_MAX = 500;
 const PREVIEW_API_URL = 'https://api.mymemory.translated.net/get';
+const PREVIEW_QUERY_LIMIT = 500; // MyMemory rejects queries over 500 chars
 const NOTES_STORAGE_KEY = 'savedNotes';
 const NOTES_MAX_ITEMS = 200;
 const NOTES_TEXT_LIMIT = 2000;
@@ -905,7 +906,8 @@ async function fetchNoteTranslation(sourceLang, targetLang, text) {
     if (!source) return '';
     if (source.toLowerCase() === String(targetLang).toLowerCase()) return text;
     const pair = `${source}|${targetLang}`;
-    const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(text)}&langpair=${pair}`;
+    const query = text.slice(0, PREVIEW_QUERY_LIMIT);
+    const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(query)}&langpair=${pair}`;
     const res = await fetch(url);
     if (!res.ok) return '';
     const data = await res.json();

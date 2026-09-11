@@ -39,6 +39,16 @@ npm test            # run tests
 npm run test:coverage  # run tests with coverage report
 ```
 
+## Build the Chrome Web Store package
+
+Install `make`, `jq`, and `zip`, then run:
+
+```bash
+make package
+```
+
+The ready-to-upload archive is created at `dist/xt1-translate-v<version>.zip`.
+
 ## License
 
 [MIT](LICENSE) © Hayk Jomardyan

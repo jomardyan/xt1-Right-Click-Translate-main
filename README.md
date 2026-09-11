@@ -8,6 +8,8 @@
 
 A Chrome extension that lets you translate selected text or entire pages via right-click context menu, powered by the [MyMemory](https://mymemory.translated.net/) translation API.
 
+See the [Privacy Policy](PRIVACY.md) for information about data handling and third-party translation services.
+
 ## Features
 
 - Right-click any selected text to translate it instantly

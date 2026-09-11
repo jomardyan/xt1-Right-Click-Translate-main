@@ -1,10 +1,20 @@
 /**
- * Content script — inline translation popup
- * Receives messages from the background service worker and displays
- * a floating popup near the selected text with the translated result.
+ * Content script - inline translation popup
+ *
+ * Injected on demand by the service worker (not on every page load), so it
+ * guards against running twice in the same document. Receives messages from
+ * the background service worker and displays a floating popup near the
+ * selected text with the translated result.
  */
 (function () {
   'use strict';
+
+  // The script is injected on demand and may be injected again while it is
+  // already running; a second run would register duplicate listeners.
+  if (typeof window !== 'undefined') {
+    if (window.__xt1TranslateLoaded) return;
+    window.__xt1TranslateLoaded = true;
+  }
 
   /** @type {{ host: HTMLElement, shadow: ShadowRoot, popup: HTMLElement } | null} */
   let popupState = null;
@@ -13,6 +23,17 @@
 
   /** Half the popup's max-width; used when no selection position is available. */
   const FALLBACK_POPUP_HALF_WIDTH = 160;
+  const MAX_ORIGINAL_PREVIEW = 80;
+
+  const t = (key, fallback) => {
+    try {
+      const message = chrome?.i18n?.getMessage?.(key);
+      if (message) return message;
+    } catch (error) {
+      // i18n is unavailable in some sandboxed frames; fall through.
+    }
+    return fallback;
+  };
 
   const POPUP_STYLES = `
     *,
@@ -24,11 +45,11 @@
       position: fixed;
       background: #ffffff;
       border: 1px solid #dde1e7;
-      border-radius: 10px;
+      border-radius: 12px;
       box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
       padding: 10px 14px 12px;
       max-width: 340px;
-      min-width: 180px;
+      min-width: 200px;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 14px;
       line-height: 1.5;
@@ -118,6 +139,45 @@
     @media (prefers-color-scheme: dark) {
       .translation.error { color: #e07070; }
     }
+    .footnote {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #999;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #eef0f4;
+    }
+    @media (prefers-color-scheme: dark) {
+      .actions { border-top-color: #2f2f42; }
+    }
+    .action {
+      font: inherit;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #dde1e7;
+      background: #f7f9fc;
+      color: #2f6fe0;
+      cursor: pointer;
+      text-decoration: none;
+      line-height: 1.6;
+    }
+    .action:hover {
+      background: #eaf1ff;
+    }
+    @media (prefers-color-scheme: dark) {
+      .action {
+        background: #24243a;
+        border-color: #3a3a4a;
+        color: #9bb4ff;
+      }
+      .action:hover { background: #2d2d48; }
+    }
   `;
 
   /**
@@ -183,6 +243,27 @@
   };
 
   /**
+   * Nudge the popup back into the viewport once its real height is known.
+   * The initial placement can only work from an estimate.
+   */
+  const correctPosition = () => {
+    if (!popupState) return;
+    try {
+      const { popup } = popupState;
+      const rect = popup.getBoundingClientRect();
+      if (!rect || !rect.height) return;
+      const MARGIN = 10;
+      const overflow = rect.bottom - (window.innerHeight - MARGIN);
+      if (overflow > 0) {
+        const top = Math.max(MARGIN, rect.top - overflow);
+        popup.style.top = `${Math.round(top)}px`;
+      }
+    } catch (_) {
+      // getBoundingClientRect is unavailable in non-browser test contexts
+    }
+  };
+
+  /**
    * Build the popup DOM inside a shadow root attached to the given host.
    * @param {HTMLElement} host
    * @param {ShadowRoot} shadow
@@ -207,6 +288,28 @@
   };
 
   /**
+   * Create the shadow host and popup shell at the current anchor point.
+   * @returns {HTMLElement} the popup div
+   */
+  const createPopupShell = () => {
+    const anchorX = lastSelectionPos
+      ? lastSelectionPos.x
+      : window.innerWidth / 2 - FALLBACK_POPUP_HALF_WIDTH;
+    const anchorY = lastSelectionPos ? lastSelectionPos.y : window.innerHeight / 2;
+    const { left, top } = computePosition(anchorX, anchorY);
+
+    const host = document.createElement('div');
+    host.id = 'xt1-translate-host';
+    // Reset all inherited styles so the host doesn't affect layout
+    host.style.cssText = 'all: initial; position: fixed; z-index: 2147483647;';
+    const shadow = host.attachShadow({ mode: 'open' });
+    const popup = buildPopup(host, shadow, left, top);
+
+    popupState = { host, shadow, popup };
+    return popup;
+  };
+
+  /**
    * Add the standard header row (badge + close button) to the popup.
    * @param {HTMLElement} popup
    * @param {string} badgeText
@@ -222,12 +325,77 @@
     const closeBtn = document.createElement('button');
     closeBtn.className = 'close-btn';
     closeBtn.textContent = '✕';
-    closeBtn.setAttribute('aria-label', 'Close translation popup');
+    closeBtn.setAttribute('aria-label', t('inlineClose', 'Close translation popup'));
     closeBtn.addEventListener('click', removePopup);
 
     header.appendChild(badge);
     header.appendChild(closeBtn);
     popup.appendChild(header);
+  };
+
+  /**
+   * Add the truncated original text line.
+   * @param {HTMLElement} popup
+   * @param {string} originalText
+   */
+  const addOriginal = (popup, originalText) => {
+    if (!originalText) return;
+    const orig = document.createElement('div');
+    orig.className = 'original';
+    orig.textContent =
+      originalText.length > MAX_ORIGINAL_PREVIEW
+        ? originalText.slice(0, MAX_ORIGINAL_PREVIEW) + '…'
+        : originalText;
+    popup.appendChild(orig);
+  };
+
+  /**
+   * Add the copy / open-in-provider action row.
+   * @param {HTMLElement} popup
+   * @param {string} translatedText
+   * @param {string} providerUrl
+   * @param {string} providerLabel
+   */
+  const addActions = (popup, translatedText, providerUrl, providerLabel) => {
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    if (translatedText) {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'action';
+      copyBtn.type = 'button';
+      const copyLabel = t('inlineCopy', 'Copy');
+      copyBtn.textContent = copyLabel;
+      copyBtn.addEventListener('click', () => {
+        const done = () => {
+          copyBtn.textContent = t('inlineCopied', 'Copied');
+          setTimeout(() => {
+            copyBtn.textContent = copyLabel;
+          }, 1500);
+        };
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(translatedText).then(done, () => {
+            copyBtn.textContent = t('inlineCopyFailed', 'Copy failed');
+          });
+        } else {
+          copyBtn.textContent = t('inlineCopyFailed', 'Copy failed');
+        }
+      });
+      actions.appendChild(copyBtn);
+    }
+
+    if (providerUrl) {
+      const link = document.createElement('a');
+      link.className = 'action';
+      link.href = providerUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = t('inlineOpenProvider', 'Open in translator');
+      if (providerLabel) link.title = providerLabel;
+      actions.appendChild(link);
+    }
+
+    if (actions.childNodes.length) popup.appendChild(actions);
   };
 
   /**
@@ -237,91 +405,85 @@
    */
   const showLoading = (originalText, providerLabel) => {
     captureSelectionPosition();
-
-    const anchorX = lastSelectionPos ? lastSelectionPos.x : window.innerWidth / 2 - FALLBACK_POPUP_HALF_WIDTH;
-    const anchorY = lastSelectionPos ? lastSelectionPos.y : window.innerHeight / 2;
-    const { left, top } = computePosition(anchorX, anchorY);
-
     removePopup();
 
-    const host = document.createElement('div');
-    host.id = 'xt1-translate-host';
-    // Reset all inherited styles so the host doesn't affect layout
-    host.style.cssText = 'all: initial; position: fixed; z-index: 2147483647;';
-    const shadow = host.attachShadow({ mode: 'open' });
-    const popup = buildPopup(host, shadow, left, top);
-
+    const popup = createPopupShell();
     addHeader(popup, providerLabel);
-
-    if (originalText) {
-      const orig = document.createElement('div');
-      orig.className = 'original';
-      orig.textContent =
-        originalText.length > 80 ? originalText.slice(0, 80) + '\u2026' : originalText;
-      popup.appendChild(orig);
-    }
+    addOriginal(popup, originalText);
 
     const loading = document.createElement('div');
     loading.className = 'translation loading';
-    loading.textContent = 'Translating\u2026';
+    loading.textContent = t('inlineLoading', 'Translating…');
     popup.appendChild(loading);
-
-    popupState = { host, shadow, popup };
   };
 
   /**
    * Update the popup to show the final translation result.
-   * @param {string} originalText
-   * @param {string} translatedText
-   * @param {string} targetLang
-   * @param {string} providerLabel
+   * @param {object} message
    */
-  const showResult = (originalText, translatedText, targetLang, providerLabel) => {
+  const showResult = ({
+    originalText,
+    translatedText,
+    targetLabel,
+    providerLabel,
+    providerUrl,
+    truncated
+  }) => {
     // If the popup was closed before the result came in, show a fresh one.
-    if (!popupState) {
-      const anchorX = lastSelectionPos ? lastSelectionPos.x : window.innerWidth / 2 - FALLBACK_POPUP_HALF_WIDTH;
-      const anchorY = lastSelectionPos ? lastSelectionPos.y : window.innerHeight / 2;
-      const { left, top } = computePosition(anchorX, anchorY);
-
-      const host = document.createElement('div');
-      host.id = 'xt1-translate-host';
-      host.style.cssText = 'all: initial; position: fixed; z-index: 2147483647;';
-      const shadow = host.attachShadow({ mode: 'open' });
-      const popup = buildPopup(host, shadow, left, top);
-      popupState = { host, shadow, popup };
-    }
+    if (!popupState) createPopupShell();
 
     const { popup } = popupState;
     popup.innerHTML = '';
 
-    addHeader(popup, `${providerLabel} \u2192 ${targetLang}`);
-
-    if (originalText) {
-      const orig = document.createElement('div');
-      orig.className = 'original';
-      orig.textContent =
-        originalText.length > 80 ? originalText.slice(0, 80) + '\u2026' : originalText;
-      popup.appendChild(orig);
-    }
+    const badge = targetLabel ? `${providerLabel} → ${targetLabel}` : providerLabel;
+    addHeader(popup, badge);
+    addOriginal(popup, originalText);
 
     const trans = document.createElement('div');
     trans.className = 'translation';
     trans.textContent = translatedText;
     popup.appendChild(trans);
+
+    if (truncated) {
+      const note = document.createElement('div');
+      note.className = 'footnote';
+      note.textContent = t(
+        'inlineTruncated',
+        'Only the first 500 characters were translated.'
+      );
+      popup.appendChild(note);
+    }
+
+    addActions(popup, translatedText, providerUrl, providerLabel);
+    correctPosition();
   };
 
   /**
    * Show an error state in the popup.
-   * @param {string} [errorMessage]
+   * @param {object} message
    */
-  const showError = (errorMessage) => {
-    if (!popupState) return;
+  const showError = ({ error, providerUrl, providerLabel }) => {
+    if (!popupState) createPopupShell();
+
     const { popup } = popupState;
-    const loading = popup.querySelector('.loading');
-    if (loading) {
-      loading.className = 'translation error';
-      loading.textContent = errorMessage || 'Translation unavailable.';
+    const existing = popup.querySelector('.translation');
+    const text = error || t('inlineError', 'Translation unavailable.');
+
+    if (existing) {
+      existing.className = 'translation error';
+      existing.textContent = text;
+    } else {
+      addHeader(popup, providerLabel || '');
+      const errorEl = document.createElement('div');
+      errorEl.className = 'translation error';
+      errorEl.textContent = text;
+      popup.appendChild(errorEl);
     }
+
+    if (providerUrl && !popup.querySelector('.actions')) {
+      addActions(popup, '', providerUrl, providerLabel);
+    }
+    correctPosition();
   };
 
   // Dismiss popup when clicking outside of it.
@@ -343,20 +505,36 @@
   });
 
   // Listen for messages from the background service worker.
-  chrome.runtime.onMessage.addListener((message) => {
-    if (!message || message.type !== 'inlineTranslation') return;
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message) return undefined;
+
+    // Injection probe: lets the service worker skip a redundant injection.
+    if (message.type === 'xt1Ping') {
+      if (typeof sendResponse === 'function') sendResponse({ ok: true });
+      return undefined;
+    }
+
+    if (message.type !== 'inlineTranslation') return undefined;
 
     if (message.phase === 'loading') {
       showLoading(message.originalText || '', message.providerLabel || '');
     } else if (message.phase === 'result') {
-      showResult(
-        message.originalText || '',
-        message.translatedText || '',
-        message.targetLang || '',
-        message.providerLabel || ''
-      );
+      showResult({
+        originalText: message.originalText || '',
+        translatedText: message.translatedText || '',
+        targetLabel: message.targetLabel || message.targetLang || '',
+        providerLabel: message.providerLabel || '',
+        providerUrl: message.providerUrl || '',
+        truncated: Boolean(message.truncated)
+      });
     } else if (message.phase === 'error') {
-      showError(message.error || '');
+      showError({
+        error: message.error || '',
+        providerUrl: message.providerUrl || '',
+        providerLabel: message.providerLabel || ''
+      });
     }
+
+    return undefined;
   });
 })();

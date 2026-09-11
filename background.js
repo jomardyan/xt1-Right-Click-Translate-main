@@ -1,5 +1,7 @@
 // Bundled ELD language detector (Apache-2.0, see vendor/ELD-LICENSE).
 // The build registers itself as globalThis.eld.
+// This has to be a static import: dynamic import() is disallowed on
+// ServiceWorkerGlobalScope, so the module cannot be loaded on demand here.
 import './vendor/eld.min.js';
 
 const MENU_NOTE_ID = 'rightClickTranslateNote';
@@ -15,9 +17,12 @@ const MIN_PREVIEW_TEXT_LIMIT = 60;
 const MAX_PREVIEW_TEXT_LIMIT = 500;
 const PREVIEW_API_URL = 'https://api.mymemory.translated.net/get';
 const PREVIEW_QUERY_LIMIT = 500; // MyMemory rejects queries over 500 chars
+const PREVIEW_TIMEOUT_MS = 8000;
 const NOTES_STORAGE_KEY = 'savedNotes';
 const NOTES_MAX_ITEMS = 200;
 const NOTES_TEXT_LIMIT = 2000;
+const CONTENT_SCRIPT_FILE = 'content.js';
+const MENU_LAYOUTS = ['full', 'compact'];
 
 const LANGUAGE_LABELS = {
   auto: 'Auto-detect',
@@ -47,16 +52,25 @@ const PROVIDERS = {
   microsoft: 'Microsoft'
 };
 
+/**
+ * Synced settings. User data (history, last translation, notes) lives in
+ * storage.local so it never burns through the sync write quota.
+ */
 const DEFAULT_OPTIONS = {
   sourceLang: 'auto',
   targetLanguages: ['en', 'es', 'pl'],
   provider: 'google',
   openMode: 'newTab',
+  menuLayout: 'full',
   previewEnabled: true,
   saveHistory: true,
   maxMenuLanguages: DEFAULT_MAX_MENU_LANGUAGES,
   previewTextLimit: DEFAULT_PREVIEW_TEXT_LIMIT,
-  notesAutoTranslate: true,
+  notesAutoTranslate: true
+};
+
+/** Device-local data, kept out of storage.sync. */
+const DEFAULT_LOCAL_DATA = {
   translationHistory: [],
   lastTranslation: null
 };
@@ -75,6 +89,9 @@ const getMenuTitle = (langLabel, providerLabel) =>
     [langLabel, providerLabel],
     `Translate selection to ${langLabel} (${providerLabel})`
   );
+
+const getCompactMenuTitle = (langLabel) =>
+  getMessage('menuTranslateCompact', [langLabel], `Translate to ${langLabel}`);
 
 const getPageMenuTitle = (langLabel, providerLabel) =>
   getMessage(
@@ -105,7 +122,9 @@ const getNoteSavedError = () =>
   getMessage('notificationNoteSavedError', null, 'Unable to save note.');
 
 /**
- * Promisified Chrome Storage API
+ * Promisified Chrome Storage API.
+ * Writes reject on chrome.runtime.lastError so quota problems surface
+ * instead of silently dropping data.
  */
 const getOptions = () =>
   new Promise((resolve) => {
@@ -113,8 +132,26 @@ const getOptions = () =>
   });
 
 const setOptions = (values) =>
+  new Promise((resolve, reject) => {
+    chrome.storage.sync.set(values, () => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
+  });
+
+const getLocalData = () =>
   new Promise((resolve) => {
-    chrome.storage.sync.set(values, resolve);
+    chrome.storage.local.get(DEFAULT_LOCAL_DATA, resolve);
+  });
+
+const setLocalData = (values) =>
+  new Promise((resolve, reject) => {
+    chrome.storage.local.set(values, () => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
   });
 
 // Device-specific connectivity state; kept in storage.local so it
@@ -135,6 +172,9 @@ const normalizeMenuLimit = (value) =>
 
 const normalizePreviewLimit = (value) =>
   clampNumber(value, MIN_PREVIEW_TEXT_LIMIT, MAX_PREVIEW_TEXT_LIMIT, DEFAULT_PREVIEW_TEXT_LIMIT);
+
+const normalizeMenuLayout = (value) =>
+  MENU_LAYOUTS.includes(value) ? value : DEFAULT_OPTIONS.menuLayout;
 
 /**
  * Promisified Chrome Context Menu API
@@ -208,8 +248,12 @@ const getNotes = () =>
   });
 
 const setNotes = (notes) =>
-  new Promise((resolve) => {
-    chrome.storage.local.set({ [NOTES_STORAGE_KEY]: notes }, resolve);
+  new Promise((resolve, reject) => {
+    chrome.storage.local.set({ [NOTES_STORAGE_KEY]: notes }, () => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
   });
 
 const addNote = async (note) => {
@@ -298,6 +342,17 @@ const buildPageUrl = (provider, sourceLang, targetLang, pageUrl) => {
 
 const isValidPageUrl = (pageUrl) => typeof pageUrl === 'string' && /^https?:\/\//i.test(pageUrl);
 
+/**
+ * Pages the extension can never inject a content script into.
+ */
+const isRestrictedUrl = (url) =>
+  typeof url !== 'string' ||
+  /^(chrome|edge|brave|opera|vivaldi|about|devtools|view-source|chrome-extension|moz-extension|file):/i.test(
+    url
+  ) ||
+  /^https:\/\/chromewebstore\.google\.com/i.test(url) ||
+  /^https:\/\/chrome\.google\.com\/webstore/i.test(url);
+
 const sanitizeHistory = (entries = []) =>
   entries
     .filter((entry) => entry && typeof entry === 'object')
@@ -312,34 +367,45 @@ const sanitizeHistory = (entries = []) =>
     .filter(Boolean);
 
 /**
- * Record translation in history
+ * Record a translation. History and "last translation" share a single
+ * storage.local write so one translation never costs more than one write.
  */
-const recordHistory = async ({ sourceLang, targetLang, provider }) => {
+const recordTranslation = async ({ sourceLang, targetLang, provider, text }) => {
   try {
     if (!targetLang) return;
-    const { translationHistory = [], saveHistory } = await getOptions();
-    if (!saveHistory) return;
+    const { saveHistory } = await getOptions();
+    const { translationHistory = [] } = await getLocalData();
 
-    const entry = {
-      sourceLang,
-      targetLang,
-      provider,
-      at: Date.now()
+    const updates = {
+      lastTranslation: {
+        text: text || '',
+        sourceLang,
+        targetLang,
+        provider,
+        timestamp: Date.now()
+      }
     };
-    const safeHistory = sanitizeHistory(translationHistory);
-    const next = [entry, ...safeHistory].slice(0, MAX_HISTORY);
-    await setOptions({ translationHistory: next });
+
+    if (saveHistory) {
+      const entry = { sourceLang, targetLang, provider, at: Date.now() };
+      updates.translationHistory = [entry, ...sanitizeHistory(translationHistory)].slice(
+        0,
+        MAX_HISTORY
+      );
+    }
+
+    await setLocalData(updates);
   } catch (error) {
-    console.error('Failed to record translation history:', error);
+    console.error('Failed to record translation:', error);
   }
 };
 
 /**
  * Get top languages from history, merged with fallback targets
  */
-const getTopLanguages = async (fallbackTargets, maxMenuLanguages) => {
+const getTopLanguages = async (fallbackTargets, maxMenuLanguages, history) => {
   try {
-    const { translationHistory = [] } = await getOptions();
+    const translationHistory = history || (await getLocalData()).translationHistory || [];
     const limit = normalizeMenuLimit(maxMenuLanguages);
     const baseTargets = Array.isArray(fallbackTargets) && fallbackTargets.length ? fallbackTargets : ['en'];
     const counts = {};
@@ -366,32 +432,52 @@ const getTopLanguages = async (fallbackTargets, maxMenuLanguages) => {
 };
 
 let menuQueue = Promise.resolve();
+let lastMenuSignature = null;
 
 /**
- * Create or update context menu items
+ * Create or update context menu items.
+ * Rebuilds are skipped when nothing that affects the menu changed, so a
+ * burst of translations does not tear the menu down and back up again.
  */
-const createOrUpdateMenu = async () => {
+const createOrUpdateMenu = async (force = false) => {
   menuQueue = menuQueue
     .then(async () => {
       try {
-        const { targetLanguages = [], provider, maxMenuLanguages } = await getOptions();
+        const { targetLanguages = [], provider, maxMenuLanguages, menuLayout } = await getOptions();
+        const { translationHistory = [] } = await getLocalData();
+        const layout = normalizeMenuLayout(menuLayout);
         const providerLabel = getProviderLabel(provider);
         const languages = await getTopLanguages(
           targetLanguages.length ? targetLanguages : ['en'],
-          maxMenuLanguages
+          maxMenuLanguages,
+          translationHistory
         );
+
+        const signature = JSON.stringify([layout, provider, languages]);
+        if (!force && signature === lastMenuSignature) return;
+        lastMenuSignature = signature;
 
         await removeAllMenus();
 
-        await Promise.all(
-          languages.map((code) =>
-            safeCreateMenu({
-              id: `${MENU_LANG_PREFIX}${code}`,
-              title: getMenuTitle(getLanguageLabel(code), providerLabel),
-              contexts: ['selection']
-            })
-          )
-        );
+        // Compact layout keeps exactly one item so Chrome shows it at the
+        // top level of the context menu instead of nesting it in a submenu.
+        if (layout === 'compact') {
+          const primary = languages[0] || 'en';
+          await safeCreateMenu({
+            id: `${MENU_LANG_PREFIX}${primary}`,
+            title: getCompactMenuTitle(getLanguageLabel(primary)),
+            contexts: ['selection']
+          });
+          return;
+        }
+
+        for (const code of languages) {
+          await safeCreateMenu({
+            id: `${MENU_LANG_PREFIX}${code}`,
+            title: getMenuTitle(getLanguageLabel(code), providerLabel),
+            contexts: ['selection']
+          });
+        }
 
         await safeCreateMenu({
           id: MENU_NOTE_SEPARATOR_ID,
@@ -405,86 +491,72 @@ const createOrUpdateMenu = async () => {
           contexts: ['selection']
         });
 
-        await Promise.all(
-          languages.map((code) =>
-            safeCreateMenu({
-              id: `${MENU_PAGE_LANG_PREFIX}${code}`,
-              title: getPageMenuTitle(getLanguageLabel(code), providerLabel),
-              contexts: ['page']
-            })
-          )
-        );
+        for (const code of languages) {
+          await safeCreateMenu({
+            id: `${MENU_PAGE_LANG_PREFIX}${code}`,
+            title: getPageMenuTitle(getLanguageLabel(code), providerLabel),
+            contexts: ['page']
+          });
+        }
       } catch (error) {
+        lastMenuSignature = null;
         console.error('Failed to create or update menu:', error);
       }
+    })
+    .catch((error) => {
+      lastMenuSignature = null;
+      console.error('Menu queue failed:', error);
     });
+
+  return menuQueue;
+};
+
+/**
+ * Show a notification and clear it after a delay.
+ */
+const showNotification = (id, { title, message, priority = 1, timeout = 8000 }) => {
+  try {
+    chrome.notifications.create(id, {
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title,
+      message,
+      priority
+    });
+
+    setTimeout(() => {
+      chrome.notifications.clear(id);
+    }, timeout);
+  } catch (error) {
+    console.error('Failed to show notification:', error);
+  }
 };
 
 /**
  * Show preview notification
  */
 const showPreviewNotification = (provider, targetLang, resultText, previewLimit) => {
-  try {
-    const providerLabel = getProviderLabel(provider);
-    const targetLabel = getLanguageLabel(targetLang);
-    const message = resultText.slice(0, previewLimit);
-
-    const notificationId = `preview_${Date.now()}`;
-    chrome.notifications.create(notificationId, {
-      type: 'basic',
-      iconUrl: 'icons/icon128.png',
-      title: getPreviewTitle(providerLabel, targetLabel),
-      message,
-      priority: 1
-    });
-    
-    // Auto-clear notification after 8 seconds
-    setTimeout(() => {
-      chrome.notifications.clear(notificationId);
-    }, 8000);
-  } catch (error) {
-    console.error('Failed to show preview notification:', error);
-  }
+  showNotification(`preview_${Date.now()}`, {
+    title: getPreviewTitle(getProviderLabel(provider), getLanguageLabel(targetLang)),
+    message: resultText.slice(0, previewLimit)
+  });
 };
 
 const showNoteNotification = (hasTranslation) => {
-  try {
-    const notificationId = `note_${Date.now()}`;
-    chrome.notifications.create(notificationId, {
-      type: 'basic',
-      iconUrl: 'icons/icon128.png',
-      title: getNoteSavedTitle(),
-      message: getNoteSavedMessage(hasTranslation),
-      priority: 1
-    });
-    
-    // Auto-clear notification after 5 seconds
-    setTimeout(() => {
-      chrome.notifications.clear(notificationId);
-    }, 5000);
-  } catch (error) {
-    console.error('Failed to show note notification:', error);
-  }
+  showNotification(`note_${Date.now()}`, {
+    title: getNoteSavedTitle(),
+    message: getNoteSavedMessage(hasTranslation),
+    timeout: 5000
+  });
 };
 
 const showNoteErrorNotification = () => {
-  try {
-    const notificationId = `note_error_${Date.now()}`;
-    chrome.notifications.create(notificationId, {
-      type: 'basic',
-      iconUrl: 'icons/icon128.png',
-      title: getNoteSavedTitle(),
-      message: getNoteSavedError(),
-      priority: 2
-    });
-    
-    // Auto-clear notification after 5 seconds
-    setTimeout(() => {
-      chrome.notifications.clear(notificationId);
-    }, 5000);
-  } catch (error) {
-    console.error('Failed to show note error notification:', error);
-  }
+  showNotification(`note_error_${Date.now()}`, {
+    title: getNoteSavedTitle(),
+    message: getNoteSavedError(),
+    priority: 2,
+    timeout: 5000
+  });
 };
 
 /**
@@ -574,7 +646,7 @@ const fetchPreview = async (sourceLang, targetLang, text) => {
     const pair = `${source}|${targetLang}`;
     const query = text.slice(0, PREVIEW_QUERY_LIMIT);
     const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(query)}&langpair=${pair}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(PREVIEW_TIMEOUT_MS) });
     if (!res.ok) {
       await setOnlineState(false);
       return null;
@@ -597,6 +669,95 @@ const fetchPreview = async (sourceLang, targetLang, text) => {
 };
 
 /**
+ * Make sure the inline popup script is running in the target tab.
+ * The content script is injected on demand instead of on every page load,
+ * so tabs opened before the extension was installed or updated still work.
+ */
+const ensureContentScript = async (tabId, tabUrl) => {
+  if (typeof tabId !== 'number') return false;
+  if (tabUrl && isRestrictedUrl(tabUrl)) return false;
+
+  try {
+    const pong = await chrome.tabs.sendMessage(tabId, { type: 'xt1Ping' });
+    if (pong?.ok) return true;
+  } catch (error) {
+    // No receiver yet; fall through to injection.
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [CONTENT_SCRIPT_FILE]
+    });
+    return true;
+  } catch (error) {
+    console.warn('Unable to inject the inline translation script:', error);
+    return false;
+  }
+};
+
+const sendToTab = (tabId, message) => {
+  try {
+    const sending = chrome.tabs.sendMessage(tabId, message);
+    if (sending?.catch) sending.catch(() => {});
+  } catch (error) {
+    // Tab closed or navigated away; nothing to do.
+  }
+};
+
+/**
+ * Show a translation inline on the page.
+ * Returns false when the page cannot host the popup so the caller can
+ * fall back to opening a provider tab.
+ */
+const showInlineTranslation = async ({ tab, text, sourceLang, targetLang, provider, url }) => {
+  const injected = await ensureContentScript(tab?.id, tab?.url);
+  if (!injected) return false;
+
+  const providerLabel = getProviderLabel(provider);
+  sendToTab(tab.id, {
+    type: 'inlineTranslation',
+    phase: 'loading',
+    originalText: text,
+    providerLabel
+  });
+
+  try {
+    const result = await fetchPreview(sourceLang, targetLang, text);
+    if (result) {
+      sendToTab(tab.id, {
+        type: 'inlineTranslation',
+        phase: 'result',
+        originalText: text,
+        translatedText: result,
+        targetLang,
+        targetLabel: getLanguageLabel(targetLang),
+        providerLabel,
+        providerUrl: url,
+        truncated: text.length > PREVIEW_QUERY_LIMIT
+      });
+    } else {
+      sendToTab(tab.id, {
+        type: 'inlineTranslation',
+        phase: 'error',
+        providerLabel,
+        providerUrl: url
+      });
+    }
+  } catch (error) {
+    console.warn('Inline translation failed:', error);
+    sendToTab(tab.id, {
+      type: 'inlineTranslation',
+      phase: 'error',
+      providerLabel,
+      providerUrl: url
+    });
+  }
+
+  return true;
+};
+
+/**
  * Handle translation request
  */
 const handleTranslation = async ({ text, targetLang, tab }) => {
@@ -606,61 +767,27 @@ const handleTranslation = async ({ text, targetLang, tab }) => {
       console.warn('Empty or invalid text for translation');
       return;
     }
-    
+
     const { provider, openMode, sourceLang, previewEnabled, previewTextLimit } = await getOptions();
     const previewLimit = normalizePreviewLimit(previewTextLimit);
     const query = encodeURIComponent(sanitizedText);
     const url = buildUrl(provider, sourceLang, targetLang, query);
 
-    // Store last translation for popup quick access
-    await setOptions({
-      lastTranslation: {
+    recordTranslation({ sourceLang, targetLang, provider, text: sanitizedText });
+
+    if (openMode === 'inline') {
+      const shown = await showInlineTranslation({
+        tab,
         text: sanitizedText,
         sourceLang,
         targetLang,
         provider,
-        timestamp: Date.now()
-      }
-    });
-
-    if (openMode === 'inline') {
-      if (tab?.id) {
-        const providerLabel = getProviderLabel(provider);
-        chrome.tabs.sendMessage(tab.id, {
-          type: 'inlineTranslation',
-          phase: 'loading',
-          originalText: sanitizedText,
-          providerLabel
-        }).catch(() => {});
-
-        fetchPreview(sourceLang, targetLang, sanitizedText)
-          .then((result) => {
-            if (result) {
-              chrome.tabs.sendMessage(tab.id, {
-                type: 'inlineTranslation',
-                phase: 'result',
-                originalText: sanitizedText,
-                translatedText: result,
-                targetLang,
-                providerLabel
-              }).catch(() => {});
-            } else {
-              chrome.tabs.sendMessage(tab.id, {
-                type: 'inlineTranslation',
-                phase: 'error',
-                error: 'Translation unavailable.'
-              }).catch(() => {});
-            }
-          })
-          .catch(() => {
-            chrome.tabs.sendMessage(tab.id, {
-              type: 'inlineTranslation',
-              phase: 'error',
-              error: 'Translation failed.'
-            }).catch(() => {});
-          });
-      }
-      recordHistory({ sourceLang, targetLang, provider });
+        url
+      });
+      if (shown) return;
+      // Restricted page (PDF viewer, web store, browser UI): the inline
+      // popup cannot be shown there, so open the provider instead.
+      await chrome.tabs.create({ url });
       return;
     }
 
@@ -681,8 +808,6 @@ const handleTranslation = async ({ text, targetLang, tab }) => {
     } else {
       await chrome.tabs.create({ url });
     }
-
-    recordHistory({ sourceLang, targetLang, provider });
   } catch (error) {
     console.error('Failed to handle translation:', error);
   }
@@ -698,13 +823,15 @@ const handlePageTranslation = async ({ targetLang, tab, pageUrl }) => {
 
     const url = buildPageUrl(provider, sourceLang, targetLang, pageUrl);
 
-    if (openMode === 'currentTab' && tab?.id) {
+    // A whole page cannot be rendered inside the inline popup, so inline
+    // mode falls back to the current tab for page translations.
+    if (openMode !== 'newTab' && tab?.id) {
       await chrome.tabs.update(tab.id, { url });
     } else {
       await chrome.tabs.create({ url });
     }
 
-    recordHistory({ sourceLang, targetLang, provider });
+    recordTranslation({ sourceLang, targetLang, provider, text: pageUrl });
   } catch (error) {
     console.error('Failed to handle page translation:', error);
   }
@@ -778,17 +905,34 @@ const onMenuClick = async (info, tab) => {
 
       const target = menuId.replace(MENU_LANG_PREFIX, '');
 
-      handleTranslation({ text: selected, targetLang: target, tab });
+      await handleTranslation({ text: selected, targetLang: target, tab });
       return;
     }
 
     if (menuId.startsWith(MENU_PAGE_LANG_PREFIX)) {
       const target = menuId.replace(MENU_PAGE_LANG_PREFIX, '');
       const pageUrl = info.pageUrl || tab?.url;
-      handlePageTranslation({ targetLang: target, tab, pageUrl });
+      await handlePageTranslation({ targetLang: target, tab, pageUrl });
     }
   } catch (error) {
     console.error('Failed to handle menu click:', error);
+  }
+};
+
+/**
+ * Read the current selection from a tab.
+ */
+const readSelection = async (tab) => {
+  if (!tab?.id || isRestrictedUrl(tab.url)) return '';
+  try {
+    const result = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => window.getSelection()?.toString() || ''
+    });
+    return (result && result[0]?.result?.trim()) || '';
+  } catch (error) {
+    console.warn('Unable to read the current selection:', error);
+    return '';
   }
 };
 
@@ -797,47 +941,102 @@ const onMenuClick = async (info, tab) => {
  */
 const onCommand = async (command) => {
   try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+
     if (command === 'translate-selection') {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) return;
-      
-      // Check if tab URL is scriptable
-      if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || 
-          tab.url.startsWith('about:') || tab.url.startsWith('chrome-extension://'))) {
-        console.warn('Cannot run script on browser internal page');
-        return;
-      }
-
-      const result = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => window.getSelection()?.toString() || ''
-      }).catch((error) => {
-        console.error('Script execution failed:', error);
-        return null;
-      });
-
-      const selected = (result && result[0]?.result?.trim()) || '';
+      const selected = await readSelection(tab);
       if (!selected) return;
 
       const { targetLanguages = [] } = await getOptions();
       const target = targetLanguages[0] || 'en';
-      handleTranslation({ text: selected, targetLang: target, tab });
+      await handleTranslation({ text: selected, targetLang: target, tab });
       return;
     }
 
     if (command === 'translate-page') {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) return;
-
       const pageUrl = tab.url;
       if (!isValidPageUrl(pageUrl)) return;
 
       const { targetLanguages = [] } = await getOptions();
       const target = targetLanguages[0] || 'en';
-      handlePageTranslation({ targetLang: target, tab, pageUrl });
+      await handlePageTranslation({ targetLang: target, tab, pageUrl });
     }
   } catch (error) {
     console.error('Failed to handle command:', error);
+  }
+};
+
+/**
+ * Messages from the popup (quick translate).
+ */
+const onRuntimeMessage = (message, sender, sendResponse) => {
+  if (message?.type !== 'quickTranslate') return undefined;
+
+  (async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id) {
+        sendResponse({ ok: false, reason: 'noTab' });
+        return;
+      }
+
+      const selected = message.text?.trim() || (await readSelection(tab));
+      if (!selected) {
+        sendResponse({ ok: false, reason: 'noSelection' });
+        return;
+      }
+
+      const { targetLanguages = [] } = await getOptions();
+      const target = message.targetLang || targetLanguages[0] || 'en';
+      await handleTranslation({ text: selected, targetLang: target, tab });
+      sendResponse({ ok: true });
+    } catch (error) {
+      console.error('Quick translate failed:', error);
+      sendResponse({ ok: false, reason: 'error' });
+    }
+  })();
+
+  return true; // keep the message channel open for the async response
+};
+
+/**
+ * Move user data written by older versions out of storage.sync.
+ * storage.sync allows only 120 writes per minute, and the old layout spent
+ * two of them on every single translation.
+ */
+const migrateLegacyStorage = async () => {
+  try {
+    const legacy = await new Promise((resolve) => {
+      chrome.storage.sync.get({ translationHistory: null, lastTranslation: null }, resolve);
+    });
+
+    const hasLegacyHistory = Array.isArray(legacy.translationHistory);
+    const hasLegacyLast = Boolean(legacy.lastTranslation);
+    if (!hasLegacyHistory && !hasLegacyLast) return;
+
+    const local = await getLocalData();
+    const updates = {};
+
+    if (hasLegacyHistory && !(local.translationHistory || []).length) {
+      updates.translationHistory = sanitizeHistory(legacy.translationHistory);
+    }
+    if (hasLegacyLast && !local.lastTranslation) {
+      updates.lastTranslation = legacy.lastTranslation;
+    }
+
+    if (Object.keys(updates).length) await setLocalData(updates);
+
+    if (chrome.storage.sync.remove) {
+      await new Promise((resolve) => {
+        chrome.storage.sync.remove(['translationHistory', 'lastTranslation'], () => {
+          chrome.runtime.lastError;
+          resolve();
+        });
+      });
+    }
+  } catch (error) {
+    console.warn('Storage migration skipped:', error);
   }
 };
 
@@ -857,6 +1056,7 @@ const ensureDefaultsOnInstall = async () => {
 
     next.provider = options.provider ?? DEFAULT_OPTIONS.provider;
     next.openMode = options.openMode ?? DEFAULT_OPTIONS.openMode;
+    next.menuLayout = normalizeMenuLayout(options.menuLayout ?? DEFAULT_OPTIONS.menuLayout);
     next.sourceLang = options.sourceLang ?? DEFAULT_OPTIONS.sourceLang;
     next.previewEnabled = options.previewEnabled ?? DEFAULT_OPTIONS.previewEnabled;
     next.saveHistory = options.saveHistory ?? DEFAULT_OPTIONS.saveHistory;
@@ -867,9 +1067,6 @@ const ensureDefaultsOnInstall = async () => {
       options.previewTextLimit ?? DEFAULT_OPTIONS.previewTextLimit
     );
     next.notesAutoTranslate = options.notesAutoTranslate ?? DEFAULT_OPTIONS.notesAutoTranslate;
-    next.translationHistory = sanitizeHistory(
-      options.translationHistory ?? DEFAULT_OPTIONS.translationHistory
-    );
 
     await setOptions(next);
   } catch (error) {
@@ -880,16 +1077,27 @@ const ensureDefaultsOnInstall = async () => {
 /**
  * Initialize extension on install
  */
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
+  await migrateLegacyStorage();
   await ensureDefaultsOnInstall();
-  createOrUpdateMenu();
+  await createOrUpdateMenu(true);
+
+  // Show the options page once on a fresh install so the open-mode and
+  // context-menu choices are discoverable instead of hidden.
+  if (details?.reason === 'install') {
+    try {
+      chrome.runtime.openOptionsPage();
+    } catch (error) {
+      console.warn('Unable to open the options page:', error);
+    }
+  }
 });
 
 /**
  * Re-initialize menu on browser startup
  */
 chrome.runtime.onStartup.addListener(() => {
-  createOrUpdateMenu();
+  createOrUpdateMenu(true);
 });
 
 /**
@@ -903,17 +1111,26 @@ chrome.contextMenus.onClicked.addListener(onMenuClick);
 chrome.commands.onCommand.addListener(onCommand);
 
 /**
- * Update menu when settings change
+ * Listen for popup requests
+ */
+chrome.runtime.onMessage.addListener(onRuntimeMessage);
+
+/**
+ * Update menu when settings or usage data change
  */
 chrome.storage.onChanged.addListener((changes, area) => {
   if (
     area === 'sync' &&
     (changes.targetLanguages ||
-      changes.openMode ||
       changes.provider ||
-      changes.translationHistory ||
-      changes.maxMenuLanguages)
+      changes.maxMenuLanguages ||
+      changes.menuLayout)
   ) {
+    createOrUpdateMenu();
+    return;
+  }
+
+  if (area === 'local' && changes.translationHistory) {
     createOrUpdateMenu();
   }
 });

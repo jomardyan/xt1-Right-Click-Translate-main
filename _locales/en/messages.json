@@ -20,7 +20,7 @@
     "description": "Options page tagline"
   },
   "optionsSubtitle": {
-    "message": "Choose how translations should open and set your target language.",
+    "message": "Choose how translations open, then set your languages.",
     "description": "Options page subtitle"
   },
   "labelSourceLanguage": {
@@ -116,11 +116,11 @@
     "description": "Open mode option"
   },
   "openModeInline": {
-    "message": "Inline (on page)",
+    "message": "On the page (no new tab)",
     "description": "Open mode option — show translation as a popup directly on the page"
   },
   "hintOpenModeInline": {
-    "message": "Inline mode shows a popup on the page using the MyMemory API. No tab is opened.",
+    "message": "On-page translations use the free MyMemory API and work best for short selections.",
     "description": "Hint shown when the inline open mode is selected"
   },
   "labelTheme": {
@@ -168,7 +168,7 @@
     "description": "Preview length hint"
   },
   "labelPreviewEnabled": {
-    "message": "Show quick preview notification (when available) before opening",
+    "message": "Show a quick preview notification before opening",
     "description": "Preview toggle label"
   },
   "labelSaveHistory": {
@@ -180,7 +180,7 @@
     "description": "History section title"
   },
   "historyHint": {
-    "message": "Recent target language usage from the last 20 translations.",
+    "message": "Recent target language usage (from the last 20 translations).",
     "description": "History hint"
   },
   "buttonClearHistory": {
@@ -267,14 +267,6 @@
     "message": "Translate page to $1 ($2)",
     "description": "Context menu title for page"
   },
-  "menuTranslateSubmenuTitle": {
-    "message": "Translate to...",
-    "description": "Selection submenu title"
-  },
-  "menuTranslatePageSubmenuTitle": {
-    "message": "Translate page to...",
-    "description": "Page submenu title"
-  },
   "notificationPreviewTitle": {
     "message": "Preview ($1 to $2)",
     "description": "Preview notification title"
@@ -296,7 +288,7 @@
     "description": "Preview API hint"
   },
   "hintHistoryPrivacy": {
-    "message": "History stores language usage only.",
+    "message": "History stores language usage only, on this device.",
     "description": "History privacy hint"
   },
   "buttonResetDefaults": {
@@ -316,7 +308,7 @@
     "description": "Clear history confirmation"
   },
   "confirmResetDefaults": {
-    "message": "Reset settings to defaults? History stays the same.",
+    "message": "Reset settings to defaults? History and notes stay the same.",
     "description": "Reset defaults confirmation"
   },
   "statusDefaultsRestored": {
@@ -527,21 +519,66 @@
     "message": "Unable to save.",
     "description": "Popup error status"
   },
-  "statsTitle": { "message": "Translation Statistics", "description": "Statistics section title" },
-  "statsHint": { "message": "Your usage insights", "description": "Statistics section hint" },
-  "statLabelTranslations": { "message": "Total Translations", "description": "Stat label" },
-  "statLabelNotes": { "message": "Saved Notes", "description": "Stat label" },
-  "statLabelProvider": { "message": "Favorite Provider", "description": "Stat label" },
-  "statLabelLanguage": { "message": "Most Used Language", "description": "Stat label" },
-  "exportNotesTitle": { "message": "Export notes as JSON", "description": "Export notes button title" },
-  "importNotesTitle": { "message": "Import notes from JSON", "description": "Import notes button title" },
-  "statusNoNotesToExport": { "message": "No notes to export", "description": "Export empty status" },
-  "statusNotesExported": { "message": "Notes exported", "description": "Export success status" },
-  "statusExportFailed": { "message": "Export failed", "description": "Export failed status" },
-  "statusInvalidFileFormat": { "message": "Invalid file format", "description": "Import invalid format status" },
-  "statusNoValidNotes": { "message": "No valid notes found in file", "description": "Import no valid notes status" },
-  "statusNotesImported": { "message": "Imported $1 notes", "description": "Import success status" },
-  "statusImportFailed": { "message": "Import failed - invalid JSON", "description": "Import failed status" },
+  "statsTitle": {
+    "message": "Translation statistics",
+    "description": "Statistics section title"
+  },
+  "statsHint": {
+    "message": "Your usage insights",
+    "description": "Statistics section hint"
+  },
+  "statLabelTranslations": {
+    "message": "Total Translations",
+    "description": "Stat label"
+  },
+  "statLabelNotes": {
+    "message": "Saved Notes",
+    "description": "Stat label"
+  },
+  "statLabelProvider": {
+    "message": "Favorite Provider",
+    "description": "Stat label"
+  },
+  "statLabelLanguage": {
+    "message": "Most Used Language",
+    "description": "Stat label"
+  },
+  "exportNotesTitle": {
+    "message": "Export notes as JSON",
+    "description": "Export notes button title"
+  },
+  "importNotesTitle": {
+    "message": "Import notes from JSON",
+    "description": "Import notes button title"
+  },
+  "statusNoNotesToExport": {
+    "message": "No notes to export",
+    "description": "Export empty status"
+  },
+  "statusNotesExported": {
+    "message": "Notes exported",
+    "description": "Export success status"
+  },
+  "statusExportFailed": {
+    "message": "Export failed",
+    "description": "Export failed status"
+  },
+  "statusInvalidFileFormat": {
+    "message": "Invalid file format",
+    "description": "Import invalid format status"
+  },
+  "statusNoValidNotes": {
+    "message": "No valid notes found in file",
+    "description": "Import no valid notes status"
+  },
+  "statusNotesImported": {
+    "message": "Imported $1 notes",
+    "description": "Import success status"
+  },
+  "statusImportFailed": {
+    "message": "Import failed - invalid JSON",
+    "description": "Import failed status"
+  },
   "popupOpenModeNewTab": {
     "message": "New tab",
     "description": "Popup open mode label for new tab"
@@ -551,7 +588,247 @@
     "description": "Popup open mode label for current tab"
   },
   "popupOpenModeInline": {
-    "message": "Inline",
+    "message": "On the page",
     "description": "Popup open mode label for inline translation on the page"
+  },
+  "actionTitle": {
+    "message": "Open Translate panel",
+    "description": "Toolbar button tooltip"
+  },
+  "commandTranslateSelection": {
+    "message": "Translate current selection with the default target language",
+    "description": "Keyboard command description"
+  },
+  "commandTranslatePage": {
+    "message": "Translate current page with the default target language",
+    "description": "Keyboard command description"
+  },
+  "menuTranslateCompact": {
+    "message": "Translate to $1",
+    "description": "Single top-level context menu entry"
+  },
+  "skipToContent": {
+    "message": "Skip to settings",
+    "description": "Skip link"
+  },
+  "tabGeneral": {
+    "message": "General",
+    "description": "Settings tab"
+  },
+  "tabLanguages": {
+    "message": "Languages",
+    "description": "Settings tab"
+  },
+  "tabNotes": {
+    "message": "Notes",
+    "description": "Settings tab"
+  },
+  "tabInsights": {
+    "message": "Insights",
+    "description": "Settings tab"
+  },
+  "sectionOutputTitle": {
+    "message": "Where translations appear",
+    "description": "Section title"
+  },
+  "sectionOutputHint": {
+    "message": "Pick how a translated selection is shown.",
+    "description": "Section hint"
+  },
+  "badgeRecommended": {
+    "message": "Recommended",
+    "description": "Option badge"
+  },
+  "badgeFastest": {
+    "message": "Fastest",
+    "description": "Option badge"
+  },
+  "openModeInlineDesc": {
+    "message": "Shows the translation in a small popup next to your selection. Nothing else opens.",
+    "description": "Open mode description"
+  },
+  "openModeNewTabDesc": {
+    "message": "Opens the translation provider in a new browser tab.",
+    "description": "Open mode description"
+  },
+  "openModeCurrentTabDesc": {
+    "message": "Replaces the page you are on with the translation provider.",
+    "description": "Open mode description"
+  },
+  "sectionMenuTitle": {
+    "message": "Right-click menu",
+    "description": "Section title"
+  },
+  "sectionMenuHint": {
+    "message": "Control how many entries Chrome shows when you right-click.",
+    "description": "Section hint"
+  },
+  "ariaMenuLayout": {
+    "message": "Context menu layout",
+    "description": "Menu layout radiogroup aria label"
+  },
+  "menuLayoutCompact": {
+    "message": "One-click (single entry)",
+    "description": "Menu layout option"
+  },
+  "menuLayoutCompactDesc": {
+    "message": "A single \"Translate to ...\" entry straight in the menu. No submenu to open, so the cursor never has to travel right.",
+    "description": "Menu layout option description"
+  },
+  "menuLayoutFull": {
+    "message": "Full submenu",
+    "description": "Menu layout option"
+  },
+  "menuLayoutFullDesc": {
+    "message": "All target languages, page translation and \"Save to notes\", grouped in a submenu.",
+    "description": "Menu layout option description"
+  },
+  "sectionPreviewTitle": {
+    "message": "Preview and history",
+    "description": "Section title"
+  },
+  "sectionPairTitle": {
+    "message": "Language pair",
+    "description": "Section title"
+  },
+  "sectionPairHint": {
+    "message": "The first target language is used for shortcuts and one-click mode.",
+    "description": "Section hint"
+  },
+  "labelAddFromList": {
+    "message": "Add from the list",
+    "description": "Field label"
+  },
+  "buttonExport": {
+    "message": "Export",
+    "description": "Export notes button"
+  },
+  "buttonImport": {
+    "message": "Import",
+    "description": "Import notes button"
+  },
+  "statusNoteTranslating": {
+    "message": "Translating...",
+    "description": "Status message"
+  },
+  "statusNotesAlreadyImported": {
+    "message": "Those notes are already here",
+    "description": "Status message"
+  },
+  "statusLoadError": {
+    "message": "Unable to load settings",
+    "description": "Status message"
+  },
+  "inlineLoading": {
+    "message": "Translating...",
+    "description": "Inline popup loading state"
+  },
+  "inlineError": {
+    "message": "Translation unavailable.",
+    "description": "Inline popup error state"
+  },
+  "inlineClose": {
+    "message": "Close translation popup",
+    "description": "Inline popup close button aria label"
+  },
+  "inlineCopy": {
+    "message": "Copy",
+    "description": "Inline popup copy button"
+  },
+  "inlineCopied": {
+    "message": "Copied",
+    "description": "Inline popup copy confirmation"
+  },
+  "inlineCopyFailed": {
+    "message": "Copy failed",
+    "description": "Inline popup copy failure"
+  },
+  "inlineOpenProvider": {
+    "message": "Open in translator",
+    "description": "Inline popup link to the full provider page"
+  },
+  "inlineTruncated": {
+    "message": "Only the first 500 characters were translated.",
+    "description": "Inline popup truncation note"
+  },
+  "popupTranslateSelection": {
+    "message": "Translate selection now",
+    "description": "Popup quick translate button"
+  },
+  "popupTranslating": {
+    "message": "Translating...",
+    "description": "Popup status"
+  },
+  "popupTranslateFailed": {
+    "message": "Translation failed.",
+    "description": "Popup status"
+  },
+  "popupNoSelection": {
+    "message": "Select some text on the page first.",
+    "description": "Popup status"
+  },
+  "popupLastTranslation": {
+    "message": "Last translation",
+    "description": "Popup section label"
+  },
+  "popupCopyTitle": {
+    "message": "Copy to clipboard",
+    "description": "Popup copy button title"
+  },
+  "popupCopyAria": {
+    "message": "Copy last translation text",
+    "description": "Popup copy button aria label"
+  },
+  "popupCopied": {
+    "message": "Copied to clipboard.",
+    "description": "Popup status"
+  },
+  "popupCopyFailed": {
+    "message": "Failed to copy.",
+    "description": "Popup status"
+  },
+  "popupOffline": {
+    "message": "Preview API offline",
+    "description": "Popup connectivity indicator"
+  },
+  "popupSwapLanguages": {
+    "message": "Swap",
+    "description": "Popup swap button"
+  },
+  "popupSwapTitle": {
+    "message": "Swap source and target languages",
+    "description": "Popup swap button title"
+  },
+  "popupSwapped": {
+    "message": "Languages swapped.",
+    "description": "Popup status"
+  },
+  "popupSwapAuto": {
+    "message": "Cannot swap from auto-detect.",
+    "description": "Popup status"
+  },
+  "popupSwapNoTarget": {
+    "message": "No target language set.",
+    "description": "Popup status"
+  },
+  "popupSwapFailed": {
+    "message": "Unable to swap.",
+    "description": "Popup status"
+  },
+  "popupJustNow": {
+    "message": "just now",
+    "description": "Relative time"
+  },
+  "popupMinutesAgo": {
+    "message": "$1m ago",
+    "description": "Relative time in minutes"
+  },
+  "popupHoursAgo": {
+    "message": "$1h ago",
+    "description": "Relative time in hours"
+  },
+  "popupDaysAgo": {
+    "message": "$1d ago",
+    "description": "Relative time in days"
   }
 }

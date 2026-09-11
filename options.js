@@ -31,29 +31,39 @@ const PROVIDERS = {
 
 const MENU_LANG_MIN = 1;
 const MENU_LANG_MAX = 12;
+const MENU_LAYOUTS = ['full', 'compact'];
 const PREVIEW_TEXT_MIN = 60;
 const PREVIEW_TEXT_MAX = 500;
 const PREVIEW_API_URL = 'https://api.mymemory.translated.net/get';
 const PREVIEW_QUERY_LIMIT = 500; // MyMemory rejects queries over 500 chars
+const PREVIEW_TIMEOUT_MS = 8000;
 const NOTES_STORAGE_KEY = 'savedNotes';
 const NOTES_MAX_ITEMS = 200;
 const NOTES_TEXT_LIMIT = 2000;
+const ACTIVE_TAB_KEY = 'xt1OptionsTab';
+const TABS = ['general', 'languages', 'notes', 'insights'];
 
 /**
- * Default extension settings
+ * Default synced settings
  */
 const DEFAULT_OPTIONS = {
   sourceLang: 'auto',
   targetLanguages: ['en', 'es', 'pl'],
   provider: 'google',
   openMode: 'newTab',
+  menuLayout: 'full',
   previewEnabled: true,
   saveHistory: true,
   themeMode: 'auto',
   maxMenuLanguages: 6,
   previewTextLimit: 180,
-  notesAutoTranslate: true,
-  translationHistory: []
+  notesAutoTranslate: true
+};
+
+/** Device-local data (never synced) */
+const DEFAULT_LOCAL_DATA = {
+  translationHistory: [],
+  lastTranslation: null
 };
 
 /**
@@ -101,6 +111,30 @@ const applyI18n = () => {
   if (title) document.title = title;
 };
 
+/**
+ * Promisified storage helpers. Writes surface chrome.runtime.lastError so a
+ * failed write is never reported to the user as a success.
+ */
+function storageGet(area, defaults) {
+  return new Promise((resolve, reject) => {
+    chrome.storage[area].get(defaults, (values) => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve(values);
+    });
+  });
+}
+
+function storageSet(area, values) {
+  return new Promise((resolve, reject) => {
+    chrome.storage[area].set(values, () => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
+  });
+}
+
 const getProviderLabel = (provider) => PROVIDERS[provider] || PROVIDERS.google;
 
 const getLanguageLabel = (code) => {
@@ -120,6 +154,9 @@ const normalizeMenuLimit = (value) =>
 
 const normalizePreviewLimit = (value) =>
   clampNumber(value, PREVIEW_TEXT_MIN, PREVIEW_TEXT_MAX, DEFAULT_OPTIONS.previewTextLimit);
+
+const normalizeMenuLayout = (value) =>
+  MENU_LAYOUTS.includes(value) ? value : DEFAULT_OPTIONS.menuLayout;
 
 function getRadioValue(name, fallback) {
   const checked = document.querySelector(`input[name="${name}"]:checked`);
@@ -162,7 +199,16 @@ function updatePreviewControls() {
 function updateInlineModeHint() {
   if (!elements.hintInlineMode) return;
   const isInline = getRadioValue('openMode', DEFAULT_OPTIONS.openMode) === 'inline';
-  elements.hintInlineMode.style.display = isInline ? '' : 'none';
+  elements.hintInlineMode.hidden = !isInline;
+}
+
+function updateMenuLayoutControls() {
+  if (!elements.menuLimitField) return;
+  // The compact layout always shows exactly one entry, so the language
+  // count slider has nothing to control.
+  const isCompact = getRadioValue('menuLayout', DEFAULT_OPTIONS.menuLayout) === 'compact';
+  elements.maxMenuLanguages.disabled = isCompact;
+  elements.menuLimitField.classList.toggle('is-disabled', isCompact);
 }
 
 function updateHistoryControls() {
@@ -180,6 +226,7 @@ function getFormValues() {
     targetLanguages: elements.targetLanguages.slice(),
     provider: elements.provider.value,
     openMode: getRadioValue('openMode', DEFAULT_OPTIONS.openMode),
+    menuLayout: normalizeMenuLayout(getRadioValue('menuLayout', DEFAULT_OPTIONS.menuLayout)),
     previewEnabled: elements.previewEnabled.checked,
     saveHistory: elements.saveHistory.checked,
     themeMode: getRadioValue('themeMode', DEFAULT_OPTIONS.themeMode),
@@ -194,14 +241,48 @@ function getFormValues() {
  */
 function setStatus(message, tone = 'info') {
   elements.status.textContent = message;
-  elements.status.setAttribute('aria-live', 'polite');
-  elements.status.setAttribute('role', 'status');
   applyStatusTone(tone);
   if (elements.statusTimeout) clearTimeout(elements.statusTimeout);
   elements.statusTimeout = setTimeout(() => {
     elements.status.textContent = '';
     elements.status.classList.remove(...STATUS_CLASSES, 'status');
-  }, 2200);
+  }, 2600);
+}
+
+/**
+ * Switch the visible settings tab
+ */
+function activateTab(name) {
+  const target = TABS.includes(name) ? name : TABS[0];
+
+  elements.tabs.forEach((tab) => {
+    const isActive = tab.dataset.tab === target;
+    tab.classList.toggle('is-active', isActive);
+    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    tab.tabIndex = isActive ? 0 : -1;
+  });
+
+  elements.panels.forEach((panel) => {
+    const isActive = panel.dataset.panel === target;
+    panel.hidden = !isActive;
+    panel.classList.toggle('is-active', isActive);
+  });
+
+  try {
+    localStorage.setItem(ACTIVE_TAB_KEY, target);
+  } catch (error) {
+    // Storage can be unavailable; the tab choice is a convenience only.
+  }
+}
+
+function restoreActiveTab() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem(ACTIVE_TAB_KEY);
+  } catch (error) {
+    stored = null;
+  }
+  activateTab(stored || TABS[0]);
 }
 
 /**
@@ -490,11 +571,12 @@ function renderHistorySummary(history, saveHistoryEnabled) {
 
 async function refreshHistorySummary() {
   try {
-    const options = await new Promise((resolve) => {
-      chrome.storage.sync.get({ translationHistory: [], saveHistory: true }, resolve);
-    });
-    elements.cachedHistory = options.translationHistory || [];
-    renderHistorySummary(elements.cachedHistory, options.saveHistory);
+    const [local, settings] = await Promise.all([
+      storageGet('local', { translationHistory: [] }),
+      storageGet('sync', { saveHistory: DEFAULT_OPTIONS.saveHistory })
+    ]);
+    elements.cachedHistory = local.translationHistory || [];
+    renderHistorySummary(elements.cachedHistory, settings.saveHistory);
   } catch (error) {
     console.error('Failed to refresh history summary:', error);
   }
@@ -509,9 +591,7 @@ async function clearHistory() {
     );
     if (!confirm(confirmMessage)) return;
 
-    await new Promise((resolve) => {
-      chrome.storage.sync.set({ translationHistory: [] }, resolve);
-    });
+    await storageSet('local', { translationHistory: [] });
     elements.cachedHistory = [];
     renderHistorySummary(elements.cachedHistory, elements.saveHistory.checked);
     setStatus(getMessage('statusHistoryCleared', null, 'History cleared'), 'success');
@@ -563,15 +643,11 @@ function sanitizeNote(note) {
 }
 
 function getNotes() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get({ [NOTES_STORAGE_KEY]: [] }, resolve);
-  });
+  return storageGet('local', { [NOTES_STORAGE_KEY]: [] });
 }
 
 function setNotes(notes) {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [NOTES_STORAGE_KEY]: notes }, resolve);
-  });
+  return storageSet('local', { [NOTES_STORAGE_KEY]: notes });
 }
 
 async function saveNote(note) {
@@ -645,6 +721,8 @@ function renderNotes(notes) {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
+
   filtered.forEach((note) => {
     const card = document.createElement('div');
     card.className = 'note-card';
@@ -658,7 +736,7 @@ function renderNotes(notes) {
     const targetLabel = getLanguageLabel(
       note.targetLang || DEFAULT_OPTIONS.targetLanguages[0] || 'en'
     );
-    langPair.textContent = `${sourceLabel} -> ${targetLabel}`;
+    langPair.textContent = `${sourceLabel} → ${targetLabel}`;
     meta.appendChild(langPair);
 
     const provider = document.createElement('span');
@@ -738,8 +816,10 @@ function renderNotes(notes) {
     actions.appendChild(deleteBtn);
 
     card.appendChild(actions);
-    container.appendChild(card);
+    fragment.appendChild(card);
   });
+
+  container.appendChild(fragment);
 }
 
 async function refreshNotes() {
@@ -836,8 +916,10 @@ function clearNoteForm() {
 // 1. Chrome's built-in AI LanguageDetector (Chrome 138+), used only when
 //    its model is already available so we never trigger a download
 // 2. chrome.i18n.detectLanguage (CLD)
-// 3. Bundled ELD library (loaded via <script> in options.html), offline
+// 3. Bundled ELD library, loaded on demand because it is close to a megabyte
+//    and is only reached when both Chrome detectors come up empty
 let builtinDetectorPromise = null;
+let eldPromise = null;
 
 async function detectWithBuiltinAI(text) {
   try {
@@ -880,10 +962,29 @@ function detectWithChromeI18n(text) {
   });
 }
 
-function detectWithEld(text) {
+function loadEld() {
+  if (!eldPromise) {
+    eldPromise = new Promise((resolve) => {
+      try {
+        const script = document.createElement('script');
+        script.src = 'vendor/eld.min.js';
+        script.onload = () => resolve(globalThis.eld?.detect ? globalThis.eld : null);
+        script.onerror = () => resolve(null);
+        document.head.appendChild(script);
+      } catch (error) {
+        console.warn('Unable to load the bundled language detector:', error);
+        resolve(null);
+      }
+    });
+  }
+  return eldPromise;
+}
+
+async function detectWithEld(text) {
   try {
-    if (typeof eld === 'undefined' || !eld?.detect) return null;
-    return eld.detect(text)?.language || null;
+    const detector = typeof eld !== 'undefined' && eld?.detect ? eld : await loadEld();
+    if (!detector) return null;
+    return detector.detect(text)?.language || null;
   } catch (error) {
     console.warn('ELD language detection failed:', error);
     return null;
@@ -894,7 +995,7 @@ async function detectTextLanguage(text) {
   const detected =
     (await detectWithBuiltinAI(text)) ||
     (await detectWithChromeI18n(text)) ||
-    detectWithEld(text);
+    (await detectWithEld(text));
   if (!detected) return null;
   // detectors report bare 'zh'; MyMemory expects a region subtag
   return detected === 'zh' ? 'zh-CN' : detected;
@@ -908,7 +1009,7 @@ async function fetchNoteTranslation(sourceLang, targetLang, text) {
     const pair = `${source}|${targetLang}`;
     const query = text.slice(0, PREVIEW_QUERY_LIMIT);
     const url = `${PREVIEW_API_URL}?q=${encodeURIComponent(query)}&langpair=${pair}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(PREVIEW_TIMEOUT_MS) });
     if (!res.ok) return '';
     const data = await res.json();
     // MyMemory returns HTTP 200 with the error text in translatedText;
@@ -941,13 +1042,18 @@ async function saveManualNote() {
   const previewLimit = normalizePreviewLimit(elements.previewTextLimit.value);
 
   let translatedText = trimNoteText(elements.noteTranslation.value);
-  if (!translatedText && elements.notesAutoTranslate.checked && sourceText.length <= previewLimit) {
-    translatedText = trimNoteText(
-      (await fetchNoteTranslation(sourceLang, targetLang, sourceText)) || ''
-    );
-  }
+  const willTranslate =
+    !translatedText && elements.notesAutoTranslate.checked && sourceText.length <= previewLimit;
 
+  elements.saveNote.disabled = true;
   try {
+    if (willTranslate) {
+      setStatus(getMessage('statusNoteTranslating', null, 'Translating...'), 'info');
+      translatedText = trimNoteText(
+        (await fetchNoteTranslation(sourceLang, targetLang, sourceText)) || ''
+      );
+    }
+
     await saveNote({
       id: createNoteId(),
       sourceText,
@@ -974,6 +1080,8 @@ async function saveManualNote() {
   } catch (error) {
     console.error('Failed to save note:', error);
     setStatus(getMessage('statusNoteSaveError', null, 'Error saving note'), 'error');
+  } finally {
+    elements.saveNote.disabled = false;
   }
 }
 
@@ -1014,6 +1122,7 @@ function applyOptionsToForm(options) {
   elements.sourceLang.value = options.sourceLang || DEFAULT_OPTIONS.sourceLang;
   elements.provider.value = options.provider || DEFAULT_OPTIONS.provider;
   setRadioValue('openMode', options.openMode || DEFAULT_OPTIONS.openMode);
+  setRadioValue('menuLayout', normalizeMenuLayout(options.menuLayout));
   elements.previewEnabled.checked = options.previewEnabled ?? DEFAULT_OPTIONS.previewEnabled;
   elements.saveHistory.checked = options.saveHistory ?? DEFAULT_OPTIONS.saveHistory;
   elements.notesAutoTranslate.checked = options.notesAutoTranslate ?? DEFAULT_OPTIONS.notesAutoTranslate;
@@ -1027,12 +1136,10 @@ function applyOptionsToForm(options) {
 
   elements.targetLanguages =
     Array.isArray(options.targetLanguages) && options.targetLanguages.length
-      ? options.targetLanguages
+      ? options.targetLanguages.slice()
       : options.targetLang
         ? [options.targetLang]
         : DEFAULT_OPTIONS.targetLanguages.slice();
-
-  elements.cachedHistory = options.translationHistory || [];
 
   renderTargets();
   applyTheme(getRadioValue('themeMode', DEFAULT_OPTIONS.themeMode));
@@ -1040,6 +1147,7 @@ function applyOptionsToForm(options) {
   updatePreviewControls();
   updateHistoryControls();
   updateInlineModeHint();
+  updateMenuLayoutControls();
 }
 
 async function resetDefaults() {
@@ -1047,20 +1155,13 @@ async function resetDefaults() {
     const confirmMessage = getMessage(
       'confirmResetDefaults',
       null,
-      'Reset settings to defaults? History stays the same.'
+      'Reset settings to defaults? History and notes stay the same.'
     );
     if (!confirm(confirmMessage)) return;
 
-    const reset = {
-      ...DEFAULT_OPTIONS,
-      translationHistory: elements.cachedHistory
-    };
+    await storageSet('sync', { ...DEFAULT_OPTIONS });
 
-    await new Promise((resolve) => {
-      chrome.storage.sync.set(reset, resolve);
-    });
-
-    applyOptionsToForm(reset);
+    applyOptionsToForm(DEFAULT_OPTIONS);
     clearDirty();
     setStatus(getMessage('statusDefaultsRestored', null, 'Defaults restored'), 'success');
   } catch (error) {
@@ -1074,14 +1175,17 @@ async function resetDefaults() {
  */
 async function restoreOptions() {
   try {
-    const options = await new Promise((resolve) => {
-      chrome.storage.sync.get(DEFAULT_OPTIONS, resolve);
-    });
+    const [options, local] = await Promise.all([
+      storageGet('sync', DEFAULT_OPTIONS),
+      storageGet('local', DEFAULT_LOCAL_DATA)
+    ]);
 
+    elements.cachedHistory = local.translationHistory || [];
     applyOptionsToForm(options);
     clearDirty();
   } catch (error) {
     console.error('Failed to restore options:', error);
+    setStatus(getMessage('statusLoadError', null, 'Unable to load settings'), 'error');
   }
 }
 
@@ -1093,14 +1197,12 @@ async function saveOptions(event) {
 
   if (elements.targetLanguages.length === 0) {
     setStatus(getMessage('statusMissingTarget', null, 'Add at least one target language'), 'error');
+    activateTab('languages');
     return;
   }
 
   try {
-    const options = getFormValues();
-    await new Promise((resolve) => {
-      chrome.storage.sync.set(options, resolve);
-    });
+    await storageSet('sync', getFormValues());
     setStatus(getMessage('statusSaved', null, 'Settings saved successfully'), 'success');
     clearDirty();
   } catch (error) {
@@ -1139,11 +1241,12 @@ async function exportNotes() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `translate-notes-${Date.now()}.json`;
+    link.download = `translate-notes-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Revoke on the next tick so the download has started.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     setStatus(getMessage('statusNotesExported', null, 'Notes exported'), 'success');
   } catch (error) {
     console.error('Failed to export notes:', error);
@@ -1154,13 +1257,12 @@ async function exportNotes() {
 /**
  * Import notes from JSON file
  */
-async function importNotes() {
-  const fileInput = document.getElementById('importFileInput');
-  fileInput.click();
+function importNotes() {
+  elements.importFileInput.click();
 }
 
 async function handleImportFile(event) {
-  const file = event.target.files[0];
+  const file = event.target.files && event.target.files[0];
   if (!file) return;
 
   try {
@@ -1174,17 +1276,22 @@ async function handleImportFile(event) {
 
     const { [NOTES_STORAGE_KEY]: existingNotes = [] } = await getNotes();
     const sanitized = imported.map(sanitizeNote).filter(Boolean);
-    
+
     if (sanitized.length === 0) {
       setStatus(getMessage('statusNoValidNotes', null, 'No valid notes found in file'), 'error');
       return;
     }
 
     // Merge with existing, avoiding duplicates by ID
-    const existingIds = new Set(existingNotes.map(n => n.id));
-    const newNotes = sanitized.filter(n => !existingIds.has(n.id));
-    const merged = [...newNotes, ...existingNotes].slice(0, NOTES_MAX_ITEMS);
+    const existingIds = new Set(existingNotes.map((n) => n && n.id));
+    const newNotes = sanitized.filter((n) => !existingIds.has(n.id));
 
+    if (newNotes.length === 0) {
+      setStatus(getMessage('statusNotesAlreadyImported', null, 'Those notes are already here'), 'info');
+      return;
+    }
+
+    const merged = [...newNotes, ...existingNotes].slice(0, NOTES_MAX_ITEMS);
     await setNotes(merged);
     await refreshNotes();
     setStatus(
@@ -1204,42 +1311,33 @@ async function handleImportFile(event) {
  */
 async function refreshStatistics() {
   try {
-    const options = await new Promise((resolve) => {
-      chrome.storage.sync.get({ translationHistory: [] }, resolve);
-    });
-    const { [NOTES_STORAGE_KEY]: notes = [] } = await getNotes();
-    const history = options.translationHistory || [];
+    const [local, stored] = await Promise.all([
+      storageGet('local', { translationHistory: [] }),
+      getNotes()
+    ]);
+    const history = local.translationHistory || [];
+    const notes = stored[NOTES_STORAGE_KEY] || [];
 
-    // Total translations
-    document.getElementById('totalTranslations').textContent = history.length;
+    elements.totalTranslations.textContent = String(history.length);
+    elements.totalNotes.textContent = String(notes.length);
 
-    // Total notes
-    document.getElementById('totalNotes').textContent = notes.length;
-
-    // Top provider
-    if (history.length > 0) {
-      const providerCounts = history.reduce((acc, entry) => {
-        acc[entry.provider] = (acc[entry.provider] || 0) + 1;
+    const topOf = (key) => {
+      if (!history.length) return null;
+      const counts = history.reduce((acc, entry) => {
+        if (!entry || !entry[key]) return acc;
+        acc[entry[key]] = (acc[entry[key]] || 0) + 1;
         return acc;
       }, {});
-      const topProvider = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0];
-      document.getElementById('topProvider').textContent = PROVIDERS[topProvider[0]] || topProvider[0];
-    } else {
-      document.getElementById('topProvider').textContent = '-';
-    }
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      return sorted.length ? sorted[0][0] : null;
+    };
 
-    // Top language
-    if (history.length > 0) {
-      const langCounts = history.reduce((acc, entry) => {
-        acc[entry.targetLang] = (acc[entry.targetLang] || 0) + 1;
-        return acc;
-      }, {});
-      const topLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0];
-      const langObj = LANGUAGES.find(l => l.code === topLang[0]);
-      document.getElementById('topLanguage').textContent = langObj ? langObj.name : topLang[0];
-    } else {
-      document.getElementById('topLanguage').textContent = '-';
-    }
+    const topProvider = topOf('provider');
+    elements.topProvider.textContent = topProvider ? getProviderLabel(topProvider) : '-';
+
+    const topLang = topOf('targetLang');
+    const langObj = topLang ? LANGUAGES.find((l) => l.code === topLang) : null;
+    elements.topLanguage.textContent = topLang ? (langObj ? langObj.name : topLang) : '-';
   } catch (error) {
     console.error('Failed to refresh statistics:', error);
   }
@@ -1255,6 +1353,7 @@ function initElements() {
   elements.saveHistory = document.getElementById('saveHistory');
   elements.maxMenuLanguages = document.getElementById('maxMenuLanguages');
   elements.maxMenuLanguagesValue = document.getElementById('maxMenuLanguagesValue');
+  elements.menuLimitField = document.getElementById('menuLimitField');
   elements.previewTextLimit = document.getElementById('previewTextLimit');
   elements.previewTextLimitValue = document.getElementById('previewTextLimitValue');
   elements.previewField = document.getElementById('previewField');
@@ -1280,12 +1379,34 @@ function initElements() {
   elements.exportNotes = document.getElementById('exportNotes');
   elements.importNotes = document.getElementById('importNotes');
   elements.importFileInput = document.getElementById('importFileInput');
+  elements.totalTranslations = document.getElementById('totalTranslations');
+  elements.totalNotes = document.getElementById('totalNotes');
+  elements.topProvider = document.getElementById('topProvider');
+  elements.topLanguage = document.getElementById('topLanguage');
   elements.openModeInputs = document.querySelectorAll('input[name="openMode"]');
+  elements.menuLayoutInputs = document.querySelectorAll('input[name="menuLayout"]');
   elements.hintInlineMode = document.getElementById('hintInlineMode');
   elements.themeModeInputs = document.querySelectorAll('input[name="themeMode"]');
+  elements.tabs = Array.from(document.querySelectorAll('.tab'));
+  elements.panels = Array.from(document.querySelectorAll('.panel'));
   elements.targetLanguages = [];
   elements.cachedHistory = [];
   elements.cachedNotes = [];
+}
+
+function initTabs() {
+  elements.tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activateTab(tab.dataset.tab));
+    tab.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const offset = event.key === 'ArrowRight' ? 1 : -1;
+      const next = elements.tabs[(index + offset + elements.tabs.length) % elements.tabs.length];
+      activateTab(next.dataset.tab);
+      next.focus();
+    });
+  });
+  restoreActiveTab();
 }
 
 /**
@@ -1294,6 +1415,7 @@ function initElements() {
 document.addEventListener('DOMContentLoaded', async () => {
   initElements();
   applyI18n();
+  initTabs();
   renderSelect(elements.sourceLang, true);
   renderSelect(elements.targetSelect, false);
   await restoreOptions();
@@ -1310,12 +1432,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Enter inside the notes fields should not submit the settings form.
+  elements.notesSearch.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+  elements.noteTag.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    saveManualNote();
+  });
+
   elements.sourceLang.addEventListener('change', markDirty);
   elements.provider.addEventListener('change', markDirty);
 
   elements.openModeInputs.forEach((input) => {
     input.addEventListener('change', () => {
       updateInlineModeHint();
+      markDirty();
+    });
+  });
+
+  elements.menuLayoutInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      updateMenuLayoutControls();
       markDirty();
     });
   });
@@ -1350,32 +1489,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     markDirty();
   });
 
-  elements.maxMenuLanguages.addEventListener('change', () =>
-    updateRange(elements.maxMenuLanguages, elements.maxMenuLanguagesValue, normalizeMenuLimit)
-  );
-  elements.previewTextLimit.addEventListener('change', () =>
-    updateRange(elements.previewTextLimit, elements.previewTextLimitValue, normalizePreviewLimit)
-  );
-
   elements.resetDefaults.addEventListener('click', resetDefaults);
   elements.clearHistory.addEventListener('click', clearHistory);
   elements.saveNote.addEventListener('click', saveManualNote);
   elements.clearNoteForm.addEventListener('click', clearNoteForm);
-  
+
   // Debounce search input for better performance
   let searchTimeout;
   elements.notesSearch.addEventListener('input', () => {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => renderNotes(elements.cachedNotes), 300);
+    searchTimeout = setTimeout(() => renderNotes(elements.cachedNotes), 250);
   });
-  
+
   elements.clearNotes.addEventListener('click', clearNotes);
   elements.exportNotes.addEventListener('click', exportNotes);
   elements.importNotes.addEventListener('click', importNotes);
   elements.importFileInput.addEventListener('change', handleImportFile);
 
+  // Warn before losing unsaved changes.
+  window.addEventListener('beforeunload', (event) => {
+    if (!isDirty) return undefined;
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+  });
+
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && (changes.translationHistory || changes.saveHistory)) {
+    if (area === 'sync' && changes.saveHistory) {
+      refreshHistorySummary();
+    }
+    if (area === 'local' && changes.translationHistory) {
       refreshHistorySummary();
       refreshStatistics();
     }

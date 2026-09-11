@@ -2,9 +2,9 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "short_name": "Translate",
-  "version": "1.6.0",
-  "version_name": "1.6.0 release",
-  "minimum_chrome_version": "103",
+  "version": "1.7.0",
+  "version_name": "1.7.0",
+  "minimum_chrome_version": "105",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
   "author": "Hayk Jomardyan",
@@ -24,23 +24,16 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "options_page": "options.html",
   "commands": {
     "translate-selection": {
-      "description": "Translate current selection with default target language",
+      "description": "__MSG_commandTranslateSelection__",
       "suggested_key": {
         "default": "Alt+Shift+T"
       }
     },
     "translate-page": {
-      "description": "Translate current page with default target language"
+      "description": "__MSG_commandTranslatePage__"
     }
   },
   "icons": {
@@ -50,6 +43,6 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Open Translate Panel"
+    "default_title": "__MSG_actionTitle__"
   }
 }

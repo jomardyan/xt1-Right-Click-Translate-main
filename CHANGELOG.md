@@ -4,6 +4,66 @@ All notable changes to the **Right-Click-Translate** extension will be documente
 
 ---
 
+## [1.7.0] - 2026-09-11
+
+### Added
+- **One-click context menu**: a new "Right-click menu" setting adds a single
+  "Translate to ..." entry directly in the right-click menu. Because Chrome only
+  nests an extension's entries into a submenu when there is more than one, the
+  compact layout removes the submenu entirely - one click, no cursor travel to
+  the right, straight into your primary target language. *(Requested by a user
+  review.)*
+- **Translate selection from the toolbar**: the extension popup now has a
+  "Translate selection now" button and an open-mode switcher, so a translation
+  can be started without touching the context menu.
+- **Richer on-page translations**: the inline popup now offers a Copy button and
+  an "Open in translator" link, flags when a selection was truncated at the
+  500-character API limit, and repositions itself once its real height is known.
+- **Redesigned options page**: a light, card-based layout split into General,
+  Languages, Notes and Insights tabs, with a sticky save bar, plain-language
+  descriptions for every mode, accessible toggles, and an unsaved-changes guard.
+- On-page mode is now presented as the recommended option and the options page
+  opens once on a fresh install, so users who do not want a new tab find the
+  setting instead of discovering the default the hard way. *(Requested by a user
+  review.)*
+
+### Fixed
+- **On-page translations no longer fail silently.** The popup script used to be
+  registered at page load only, so any tab opened before the extension was
+  installed, updated, or reloaded produced nothing at all. The script is now
+  injected on demand, and pages that cannot host it (PDF viewer, Web Store,
+  browser UI) fall back to opening the provider instead of doing nothing.
+- **Sync storage quota exhaustion.** Every translation wrote both the history
+  and the last-translation record to `chrome.storage.sync`, two of the 120 writes
+  Chrome allows per minute. Translation history and the last translation now live
+  in local storage and share a single write, and existing data is migrated
+  automatically on update. Settings can no longer be dropped by a quota error.
+- **Context menu rebuilds.** The menu was torn down and rebuilt after every
+  single translation. It is now rebuilt only when its contents actually change.
+- **Silent write failures.** Storage writes in the options page, popup and
+  service worker now check `chrome.runtime.lastError`, so "Settings saved
+  successfully" is never shown for a write that failed.
+- Note translation requests in the options page now time out after 8 seconds
+  instead of hanging indefinitely.
+- The options page no longer loads the ~960 KB offline language-detection
+  library up front; it is fetched only if a note actually needs it.
+- Importing notes that are already present now reports that clearly instead of
+  claiming "Imported 0 notes".
+- Swapping languages no longer produces a duplicated target language entry.
+- The exported notes blob URL is revoked after the download starts, not before.
+
+### Changed
+- **Reduced install warning.** The `<all_urls>` content script was removed from
+  the manifest, so the extension no longer asks to "read and change all your data
+  on all websites". Page access is now requested per action through `activeTab`.
+- Full localization coverage: the inline popup, toolbar popup, keyboard shortcut
+  descriptions and relative timestamps are no longer hard-coded English.
+- The theme, popup and options pages share one light-first palette with a
+  dedicated on-accent colour so text stays readable in dark mode.
+- Minimum supported Chrome version raised from 103 to 105.
+
+---
+
 ## [1.6.0] - 2026-06-10
 
 ### Added

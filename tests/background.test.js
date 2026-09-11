@@ -30,7 +30,7 @@ beforeAll(() => {
     // Ignore errors from the top-level listeners
   }
   bg = vm.runInContext(
-    '({ buildUrl, buildPageUrl, sanitizeText, sanitizeNote, sanitizeHistory, clampNumber, normalizeMenuLimit, normalizePreviewLimit, isValidPageUrl, getLanguageLabel, getProviderLabel, detectTextLanguage, fetchPreview })',
+    '({ buildUrl, buildPageUrl, sanitizeText, sanitizeNote, sanitizeHistory, clampNumber, normalizeMenuLimit, normalizePreviewLimit, normalizeMenuLayout, isValidPageUrl, isRestrictedUrl, getLanguageLabel, getProviderLabel, detectTextLanguage, fetchPreview, createOrUpdateMenu, recordTranslation, getTopLanguages, migrateLegacyStorage })',
     ctx
   );
 });
@@ -557,5 +557,253 @@ describe('fetchPreview API limits and connectivity state', () => {
       { isOnline: true },
       expect.any(Function)
     );
+  });
+});
+
+describe('menu layout', () => {
+  test('normalizes unknown layouts to full', () => {
+    expect(bg.normalizeMenuLayout('compact')).toBe('compact');
+    expect(bg.normalizeMenuLayout('full')).toBe('full');
+    expect(bg.normalizeMenuLayout('nonsense')).toBe('full');
+    expect(bg.normalizeMenuLayout(undefined)).toBe('full');
+  });
+
+  const menuOptions = (overrides) => ({
+    sourceLang: 'auto',
+    targetLanguages: ['en', 'es', 'pl'],
+    provider: 'google',
+    openMode: 'newTab',
+    menuLayout: 'full',
+    previewEnabled: true,
+    saveHistory: true,
+    maxMenuLanguages: 6,
+    previewTextLimit: 180,
+    notesAutoTranslate: true,
+    ...overrides
+  });
+
+  const buildMenu = async (overrides) => {
+    chrome.storage.sync.get.mockImplementation((defaults, cb) => cb(menuOptions(overrides)));
+    chrome.storage.local.get.mockImplementation((defaults, cb) =>
+      cb({ ...defaults, translationHistory: [] })
+    );
+    await bg.createOrUpdateMenu(true);
+    return chrome.contextMenus.create.mock.calls.map(([props]) => props);
+  };
+
+  test('compact layout creates exactly one top-level selection item', async () => {
+    const created = await buildMenu({ menuLayout: 'compact' });
+    expect(created).toHaveLength(1);
+    expect(created[0].contexts).toEqual(['selection']);
+    expect(created[0].id).toBe('rightClickTranslateLang_en');
+    // A single item is never nested in a submenu by Chrome.
+    expect(created[0].title).toContain('English');
+  });
+
+  test('full layout creates selection, note and page items', async () => {
+    const created = await buildMenu({ menuLayout: 'full' });
+    const ids = created.map((item) => item.id);
+    expect(ids).toContain('rightClickTranslateLang_en');
+    expect(ids).toContain('rightClickTranslateLang_es');
+    expect(ids).toContain('rightClickTranslateNote');
+    expect(ids).toContain('rightClickTranslatePageLang_en');
+    expect(created.length).toBeGreaterThan(1);
+  });
+
+  test('honours the max menu languages limit', async () => {
+    const created = await buildMenu({ menuLayout: 'full', maxMenuLanguages: 1 });
+    const selectionLangs = created.filter((item) =>
+      item.id && item.id.startsWith('rightClickTranslateLang_')
+    );
+    expect(selectionLangs).toHaveLength(1);
+  });
+
+  test('skips the rebuild when nothing relevant changed', async () => {
+    await buildMenu({ menuLayout: 'full' });
+    chrome.contextMenus.create.mockClear();
+    chrome.contextMenus.removeAll.mockClear();
+    await bg.createOrUpdateMenu();
+    expect(chrome.contextMenus.removeAll).not.toHaveBeenCalled();
+    expect(chrome.contextMenus.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('getTopLanguages', () => {
+  test('merges history usage after the configured targets', async () => {
+    const history = [
+      { sourceLang: 'auto', targetLang: 'ja', provider: 'google', at: 1 },
+      { sourceLang: 'auto', targetLang: 'ja', provider: 'google', at: 2 },
+      { sourceLang: 'auto', targetLang: 'de', provider: 'google', at: 3 }
+    ];
+    const result = await bg.getTopLanguages(['en'], 6, history);
+    expect(result[0]).toBe('en');
+    expect(result).toContain('ja');
+    expect(result).toContain('de');
+    expect(result.indexOf('ja')).toBeLessThan(result.indexOf('de'));
+  });
+
+  test('never returns more entries than the limit', async () => {
+    const history = [
+      { sourceLang: 'auto', targetLang: 'ja', provider: 'google', at: 1 },
+      { sourceLang: 'auto', targetLang: 'de', provider: 'google', at: 2 }
+    ];
+    const result = await bg.getTopLanguages(['en', 'es'], 2, history);
+    expect(result).toEqual(['en', 'es']);
+  });
+});
+
+describe('recordTranslation', () => {
+  beforeEach(() => {
+    chrome.storage.sync.get.mockImplementation((defaults, cb) =>
+      cb({ ...defaults, saveHistory: true })
+    );
+    chrome.storage.local.get.mockImplementation((defaults, cb) =>
+      cb({ ...defaults, translationHistory: [] })
+    );
+  });
+
+  test('writes history and last translation to storage.local in one write', async () => {
+    await bg.recordTranslation({
+      sourceLang: 'auto',
+      targetLang: 'es',
+      provider: 'google',
+      text: 'hello'
+    });
+
+    const localWrites = chrome.storage.local.set.mock.calls;
+    expect(localWrites).toHaveLength(1);
+    const [values] = localWrites[0];
+    expect(values.lastTranslation.text).toBe('hello');
+    expect(values.translationHistory[0].targetLang).toBe('es');
+  });
+
+  test('never writes translation data to storage.sync', async () => {
+    await bg.recordTranslation({
+      sourceLang: 'auto',
+      targetLang: 'es',
+      provider: 'google',
+      text: 'hello'
+    });
+    expect(chrome.storage.sync.set).not.toHaveBeenCalled();
+  });
+
+  test('skips history but still records the last translation when history is off', async () => {
+    chrome.storage.sync.get.mockImplementation((defaults, cb) =>
+      cb({ ...defaults, saveHistory: false })
+    );
+
+    await bg.recordTranslation({
+      sourceLang: 'auto',
+      targetLang: 'es',
+      provider: 'google',
+      text: 'hello'
+    });
+
+    const [values] = chrome.storage.local.set.mock.calls[0];
+    expect(values.translationHistory).toBeUndefined();
+    expect(values.lastTranslation).toBeDefined();
+  });
+
+  test('caps history at 20 entries', async () => {
+    const existing = Array.from({ length: 25 }, (_, i) => ({
+      sourceLang: 'auto',
+      targetLang: 'en',
+      provider: 'google',
+      at: i
+    }));
+    chrome.storage.local.get.mockImplementation((defaults, cb) =>
+      cb({ ...defaults, translationHistory: existing })
+    );
+
+    await bg.recordTranslation({
+      sourceLang: 'auto',
+      targetLang: 'fr',
+      provider: 'google',
+      text: 'bonjour'
+    });
+
+    const [values] = chrome.storage.local.set.mock.calls[0];
+    expect(values.translationHistory).toHaveLength(20);
+    expect(values.translationHistory[0].targetLang).toBe('fr');
+  });
+});
+
+describe('isRestrictedUrl', () => {
+  test('flags browser-internal pages', () => {
+    expect(bg.isRestrictedUrl('chrome://settings')).toBe(true);
+    expect(bg.isRestrictedUrl('edge://extensions')).toBe(true);
+    expect(bg.isRestrictedUrl('about:blank')).toBe(true);
+    expect(bg.isRestrictedUrl('devtools://devtools/foo')).toBe(true);
+    expect(bg.isRestrictedUrl('view-source:https://example.com')).toBe(true);
+    expect(bg.isRestrictedUrl('chrome-extension://abc/page.html')).toBe(true);
+  });
+
+  test('flags the Chrome Web Store', () => {
+    expect(bg.isRestrictedUrl('https://chromewebstore.google.com/detail/x')).toBe(true);
+    expect(bg.isRestrictedUrl('https://chrome.google.com/webstore/detail/x')).toBe(true);
+  });
+
+  test('allows ordinary web pages', () => {
+    expect(bg.isRestrictedUrl('https://example.com/article')).toBe(false);
+    expect(bg.isRestrictedUrl('http://localhost:3000')).toBe(false);
+  });
+
+  test('treats missing urls as restricted', () => {
+    expect(bg.isRestrictedUrl(undefined)).toBe(true);
+    expect(bg.isRestrictedUrl(null)).toBe(true);
+  });
+});
+
+describe('migrateLegacyStorage', () => {
+  const legacyHistory = [{ sourceLang: 'auto', targetLang: 'ja', provider: 'deepl', at: 1 }];
+  const legacyLast = { text: 'legacy', sourceLang: 'auto', targetLang: 'ja', provider: 'deepl', timestamp: 1 };
+
+  test('moves history and last translation out of sync storage', async () => {
+    chrome.storage.sync.get.mockImplementation((defaults, cb) =>
+      cb({ translationHistory: legacyHistory, lastTranslation: legacyLast })
+    );
+    chrome.storage.local.get.mockImplementation((defaults, cb) =>
+      cb({ translationHistory: [], lastTranslation: null })
+    );
+
+    await bg.migrateLegacyStorage();
+
+    const [values] = chrome.storage.local.set.mock.calls[0];
+    expect(values.translationHistory).toHaveLength(1);
+    expect(values.translationHistory[0].targetLang).toBe('ja');
+    expect(values.lastTranslation).toEqual(legacyLast);
+    expect(chrome.storage.sync.remove).toHaveBeenCalledWith(
+      ['translationHistory', 'lastTranslation'],
+      expect.any(Function)
+    );
+  });
+
+  test('never overwrites data already in local storage', async () => {
+    chrome.storage.sync.get.mockImplementation((defaults, cb) =>
+      cb({ translationHistory: legacyHistory, lastTranslation: legacyLast })
+    );
+    chrome.storage.local.get.mockImplementation((defaults, cb) =>
+      cb({
+        translationHistory: [{ sourceLang: 'auto', targetLang: 'pl', provider: 'google', at: 9 }],
+        lastTranslation: { text: 'newer', sourceLang: 'auto', targetLang: 'pl', provider: 'google', timestamp: 9 }
+      })
+    );
+
+    await bg.migrateLegacyStorage();
+
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    // The stale sync copies are still cleaned up.
+    expect(chrome.storage.sync.remove).toHaveBeenCalled();
+  });
+
+  test('does nothing when there is no legacy data', async () => {
+    chrome.storage.sync.get.mockImplementation((defaults, cb) =>
+      cb({ translationHistory: null, lastTranslation: null })
+    );
+
+    await bg.migrateLegacyStorage();
+
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(chrome.storage.sync.remove).not.toHaveBeenCalled();
   });
 });

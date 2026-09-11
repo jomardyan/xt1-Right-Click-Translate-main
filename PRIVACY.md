@@ -1,6 +1,6 @@
 # Privacy Policy for Right-click Translate
 
-**Effective date:** September 11, 2026
+**Effective date:** September 11, 2026 (version 1.7.0)
 
 Right-click Translate is a Chrome extension maintained by Hayk Jomardyan. This policy explains what information the extension handles and how it is used.
 
@@ -33,7 +33,8 @@ The extension does not sell user data or transfer it to third parties for advert
 
 ## Storage and retention
 
-- Preferences, the optional language-only translation history, and the latest translation are stored with Chrome Storage Sync and may be synchronized by Chrome according to your Chrome account settings.
+- Preferences are stored with Chrome Storage Sync and may be synchronized by Chrome according to your Chrome account settings.
+- The optional language-only translation history and the latest translation are stored in Chrome's local storage on the device and are never synchronized to your Chrome account.
 - Translation history is limited to the 20 most recent entries and can be disabled or cleared in the Options page.
 - Saved notes are stored in Chrome's local storage on the device and are limited to the 200 most recent notes. Notes can be deleted from the Options page.
 - Saved note text is limited to 2,000 characters per note. Preview requests are limited by the preview setting, up to 500 characters.
@@ -51,11 +52,11 @@ The extension uses permissions only to provide its features:
 - `contextMenus` creates right-click translation and note actions.
 - `tabs` opens or updates translation pages and reads the active page URL for page translation.
 - `storage` saves preferences, optional history, the latest translation, and local notes.
-- `scripting` supports the keyboard shortcut and selected-text translation.
-- `activeTab` permits the shortcut to read the current selection when invoked.
+- `scripting` reads the current selection and, for on-page translations, injects the popup script into the page you invoked the extension on.
+- `activeTab` grants that access only for the tab where you used the context menu, the keyboard shortcut, or the toolbar button, and only until that tab navigates away.
 - `notifications` displays optional translation previews and note status messages.
 - Access to `https://api.mymemory.translated.net/*` is used for optional translation previews and automatic note translations.
-- The content script runs on web pages to display an inline translation popup when that mode is enabled. It does not collect or transmit page content by itself.
+- The extension does not register a content script on every page. The on-page translation popup is injected only into the tab you act on, only when on-page mode is selected, and only for that action. It does not collect or transmit page content by itself.
 
 ## Your choices
 

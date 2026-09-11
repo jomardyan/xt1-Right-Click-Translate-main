@@ -10,11 +10,16 @@
   <main class="panel">
     <header class="header">
       <img src="icons/icon48.png" alt="" class="brand-icon">
-      <div>
+      <div class="header-text">
         <h1 data-i18n="popupTitle">Right-click Translate</h1>
         <p class="subtitle" data-i18n="popupSubtitle">Translate faster from the context menu.</p>
       </div>
     </header>
+
+    <button id="translateSelection" class="primary block" type="button">
+      <span aria-hidden="true">⚡</span>
+      <span data-i18n="popupTranslateSelection">Translate selection now</span>
+    </button>
 
     <section class="summary">
       <div class="summary-row">
@@ -26,15 +31,27 @@
         <span id="providerLabel" class="value">Google</span>
       </div>
       <div class="summary-row">
-        <span class="label" data-i18n="popupOpenModeLabel">Open mode</span>
-        <span id="openModeLabel" class="value">New tab</span>
+        <label class="label" for="openModeSelect" data-i18n="popupOpenModeLabel">Open mode</label>
+        <select id="openModeSelect" class="value-select">
+          <option value="inline" data-i18n="popupOpenModeInline">On the page</option>
+          <option value="newTab" data-i18n="popupOpenModeNewTab">New tab</option>
+          <option value="currentTab" data-i18n="popupOpenModeCurrentTab">Current tab</option>
+        </select>
       </div>
     </section>
 
     <div id="lastTranslation" class="last-translation hidden">
       <div class="last-translation-header">
-        <span class="label">Last translation</span>
-        <button id="copyLastTranslation" class="icon-btn" title="Copy to clipboard" aria-label="Copy last translation text">
+        <span class="label" data-i18n="popupLastTranslation">Last translation</span>
+        <button
+          id="copyLastTranslation"
+          class="icon-btn"
+          type="button"
+          title="Copy to clipboard"
+          data-i18n-title="popupCopyTitle"
+          aria-label="Copy last translation text"
+          data-i18n-aria="popupCopyAria"
+        >
           📋
         </button>
       </div>
@@ -47,7 +64,7 @@
 
     <div id="onlineStatus" class="status-indicator hidden">
       <span class="status-dot offline"></span>
-      <span>Preview API offline</span>
+      <span data-i18n="popupOffline">Preview API offline</span>
     </div>
 
     <label class="toggle">
@@ -56,10 +73,19 @@
     </label>
 
     <div class="button-group">
-      <button id="swapLanguages" class="secondary" title="Swap source and target languages">
-        <span>⇄</span> Swap Languages
+      <button
+        id="swapLanguages"
+        class="secondary"
+        type="button"
+        title="Swap source and target languages"
+        data-i18n-title="popupSwapTitle"
+      >
+        <span aria-hidden="true">⇄</span>
+        <span data-i18n="popupSwapLanguages">Swap</span>
       </button>
-      <button id="openOptions" class="primary" data-i18n="popupOpenOptions">Open options</button>
+      <button id="openOptions" class="secondary" type="button" data-i18n="popupOpenOptions">
+        Open options
+      </button>
     </div>
 
     <p id="status" role="status" aria-live="polite"></p>

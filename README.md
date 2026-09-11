@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/test.yml/badge.svg)](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/test.yml)
 [![Build ZIP](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/release.yml/badge.svg)](https://github.com/jomardyan/xt1-Right-Click-Translate-main/actions/workflows/release.yml)
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](manifest.json)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green.svg)](https://developer.chrome.com/docs/extensions/mv3/)
 [![License](https://img.shields.io/github/license/jomardyan/xt1-Right-Click-Translate-main)](LICENSE)
 
@@ -13,9 +13,16 @@ See the [Privacy Policy](PRIVACY.md) for information about data handling and thi
 ## Features
 
 - Right-click any selected text to translate it instantly
+- **On-page translations** - the result appears in a small popup next to your
+  selection, with copy and "open in translator" actions. No new tab is opened.
+- **One-click context menu** - an optional single "Translate to ..." entry that
+  sits directly in the right-click menu, so there is no submenu to open and the
+  cursor never has to travel right
 - Translate the full page from the context menu
+- Translate the current selection straight from the toolbar popup
 - Keyboard shortcut: `Alt+Shift+T` to translate selection
-- Configurable target language via the Options page
+- Configurable target languages, provider and theme via the Options page
+- Notes and bookmarks with JSON import/export
 - Supports 50+ languages
 - Automatic source language detection for previews, using Chrome's built-in
   [LanguageDetector](https://developer.mozilla.org/en-US/docs/Web/API/LanguageDetector) AI API
@@ -38,6 +45,14 @@ npm install
 npm test            # run tests
 npm run test:coverage  # run tests with coverage report
 ```
+
+### Privacy-friendly by design
+
+The extension declares a single host permission (`api.mymemory.translated.net`)
+and registers **no** content script on `<all_urls>`. The on-page popup script is
+injected on demand with `chrome.scripting`, using the `activeTab` grant that
+Chrome gives when you pick a context-menu item, press the shortcut, or open the
+toolbar popup.
 
 ## Build the Chrome Web Store package
 

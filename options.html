@@ -7,8 +7,10 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <main class="card">
-    <header class="hero">
+  <a class="skip-link" href="#main-panel" data-i18n="skipToContent">Skip to settings</a>
+
+  <form id="options-form" class="app">
+    <header class="topbar">
       <div class="brand">
         <img src="icons/icon48.png" alt="" class="brand-icon">
         <div class="brand-text">
@@ -16,114 +18,232 @@
           <p class="tagline" data-i18n="optionsTagline">Instant translations from the context menu.</p>
         </div>
       </div>
-      <p class="subtitle" data-i18n="optionsSubtitle">
-        Choose how translations should open and set your target language.
-      </p>
+      <div class="topbar-actions">
+        <span id="unsavedHint" class="unsaved" data-i18n="unsavedChanges">Unsaved changes</span>
+        <span id="status" role="status" aria-live="polite"></span>
+        <button type="submit" class="primary" data-i18n="buttonSave">Save</button>
+      </div>
     </header>
 
-    <form id="options-form">
-      <div class="layout two-col">
-        <label class="field">
-          <span class="label" data-i18n="labelSourceLanguage">Source language</span>
-          <select
-            id="sourceLang"
-            name="sourceLang"
-            aria-label="Select source language"
-            data-i18n-aria="ariaSourceLanguage"
-          ></select>
-        </label>
-        <label class="field">
-          <span class="label" data-i18n="labelProvider">Provider</span>
-          <select id="provider" name="provider" aria-label="Select translation provider" data-i18n-aria="ariaProvider">
-            <option value="google" data-i18n="providerGoogle">Google Translate</option>
-            <option value="deepl" data-i18n="providerDeepL">DeepL</option>
-            <option value="bing" data-i18n="providerBing">Bing Translator</option>
-            <option value="yandex" data-i18n="providerYandex">Yandex Translate</option>
-            <option value="microsoft" data-i18n="providerMicrosoft">Microsoft Translator</option>
-          </select>
-        </label>
-      </div>
+    <nav class="tabs" role="tablist" aria-label="Settings sections">
+      <button
+        type="button"
+        class="tab is-active"
+        role="tab"
+        id="tab-general"
+        data-tab="general"
+        aria-controls="panel-general"
+        aria-selected="true"
+      >
+        <span class="tab-icon" aria-hidden="true">⚙</span>
+        <span data-i18n="tabGeneral">General</span>
+      </button>
+      <button
+        type="button"
+        class="tab"
+        role="tab"
+        id="tab-languages"
+        data-tab="languages"
+        aria-controls="panel-languages"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        <span class="tab-icon" aria-hidden="true">🌐</span>
+        <span data-i18n="tabLanguages">Languages</span>
+      </button>
+      <button
+        type="button"
+        class="tab"
+        role="tab"
+        id="tab-notes"
+        data-tab="notes"
+        aria-controls="panel-notes"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        <span class="tab-icon" aria-hidden="true">📝</span>
+        <span data-i18n="tabNotes">Notes</span>
+      </button>
+      <button
+        type="button"
+        class="tab"
+        role="tab"
+        id="tab-insights"
+        data-tab="insights"
+        aria-controls="panel-insights"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        <span class="tab-icon" aria-hidden="true">📊</span>
+        <span data-i18n="tabInsights">Insights</span>
+      </button>
+    </nav>
 
-      <label class="field">
-        <span class="label" data-i18n="labelAddTargetLanguage">Add target language</span>
-        <div class="row">
-          <select
-            id="targetSelect"
-            name="targetSelect"
-            aria-label="Select target language to add"
-            data-i18n-aria="ariaTargetSelect"
-          ></select>
-          <button
-            type="button"
-            id="addTarget"
-            aria-label="Add selected language"
-            data-i18n="buttonAdd"
-            data-i18n-aria="ariaAddTarget"
-          >
-            Add
-          </button>
-        </div>
-        <p class="hint" data-i18n="hintTargetLanguages">
-          Maintain a quick list of languages; these show up in the context menu.
-        </p>
-      </label>
+    <main id="main-panel" class="panels">
+      <!-- ------------------------------ General ------------------------------ -->
+      <section
+        class="panel is-active"
+        id="panel-general"
+        role="tabpanel"
+        aria-labelledby="tab-general"
+        data-panel="general"
+      >
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="sectionOutputTitle">Where translations appear</h2>
+            <p class="card-hint" data-i18n="sectionOutputHint">
+              Pick how a translated selection is shown.
+            </p>
+          </div>
 
-      <label class="field">
-        <span class="label" data-i18n="labelCustomLanguage">Custom language code</span>
-        <div class="row">
-          <input
-            type="text"
-            id="customLangCode"
-            placeholder="e.g., pt-BR, zh-TW"
-            aria-label="Custom language code input"
-            data-i18n-placeholder="placeholderCustomLanguage"
-            data-i18n-aria="ariaCustomLanguage"
-            autocomplete="off"
-          />
-          <button
-            type="button"
-            id="addCustomLang"
-            aria-label="Add custom language"
-            data-i18n="buttonAdd"
-            data-i18n-aria="ariaAddCustomLanguage"
-          >
-            Add
-          </button>
-        </div>
-        <p class="hint" data-i18n="hintCustomLanguage">
-          Enter custom language codes (e.g., pt-BR for Brazilian Portuguese, zh-TW for Traditional Chinese)
-        </p>
-      </label>
-
-      <div class="chips" id="targetsList"></div>
-      <p class="hint hint-primary" data-i18n="hintPrimaryLanguage">
-        Tip: The first language is used for quick actions and shortcuts.
-      </p>
-
-      <div class="layout two-col">
-        <div class="field">
-          <span class="label" data-i18n="labelOpenMode">Open translation</span>
-          <div class="segmented" role="radiogroup" aria-label="Open translation mode" data-i18n-aria="ariaOpenMode">
-            <label class="segment">
-              <input type="radio" name="openMode" value="newTab">
-              <span data-i18n="openModeNewTab">In a new tab</span>
-            </label>
-            <label class="segment">
-              <input type="radio" name="openMode" value="currentTab">
-              <span data-i18n="openModeCurrentTab">In the current tab</span>
-            </label>
-            <label class="segment">
+          <div class="option-list" role="radiogroup" aria-label="Open translation mode" data-i18n-aria="ariaOpenMode">
+            <label class="option">
               <input type="radio" name="openMode" value="inline">
-              <span data-i18n="openModeInline">Inline (on page)</span>
+              <span class="option-body">
+                <span class="option-title">
+                  <span data-i18n="openModeInline">On the page (no new tab)</span>
+                  <span class="pill pill-accent" data-i18n="badgeRecommended">Recommended</span>
+                </span>
+                <span class="option-desc" data-i18n="openModeInlineDesc">
+                  Shows the translation in a small popup next to your selection. Nothing else opens.
+                </span>
+              </span>
+            </label>
+            <label class="option">
+              <input type="radio" name="openMode" value="newTab">
+              <span class="option-body">
+                <span class="option-title" data-i18n="openModeNewTab">In a new tab</span>
+                <span class="option-desc" data-i18n="openModeNewTabDesc">
+                  Opens the translation provider in a new browser tab.
+                </span>
+              </span>
+            </label>
+            <label class="option">
+              <input type="radio" name="openMode" value="currentTab">
+              <span class="option-body">
+                <span class="option-title" data-i18n="openModeCurrentTab">In the current tab</span>
+                <span class="option-desc" data-i18n="openModeCurrentTabDesc">
+                  Replaces the page you are on with the translation provider.
+                </span>
+              </span>
             </label>
           </div>
-          <p class="hint" data-i18n="hintOpenModeInline" id="hintInlineMode" style="display:none">
-            Inline mode shows a popup on the page using the MyMemory API. No tab is opened.
-          </p>
-        </div>
 
-        <div class="field">
-          <span class="label" data-i18n="labelTheme">Theme</span>
+          <p class="callout" id="hintInlineMode" data-i18n="hintOpenModeInline" hidden>
+            On-page translations use the free MyMemory API and work best for short selections.
+          </p>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="sectionMenuTitle">Right-click menu</h2>
+            <p class="card-hint" data-i18n="sectionMenuHint">
+              Control how many entries Chrome shows when you right-click.
+            </p>
+          </div>
+
+          <div class="option-list" role="radiogroup" aria-label="Context menu layout" data-i18n-aria="ariaMenuLayout">
+            <label class="option">
+              <input type="radio" name="menuLayout" value="compact">
+              <span class="option-body">
+                <span class="option-title">
+                  <span data-i18n="menuLayoutCompact">One-click (single entry)</span>
+                  <span class="pill" data-i18n="badgeFastest">Fastest</span>
+                </span>
+                <span class="option-desc" data-i18n="menuLayoutCompactDesc">
+                  A single "Translate to ..." entry straight in the menu. No submenu to open, so the
+                  cursor never has to travel right.
+                </span>
+              </span>
+            </label>
+            <label class="option">
+              <input type="radio" name="menuLayout" value="full">
+              <span class="option-body">
+                <span class="option-title" data-i18n="menuLayoutFull">Full submenu</span>
+                <span class="option-desc" data-i18n="menuLayoutFullDesc">
+                  All target languages, page translation and "Save to notes", grouped in a submenu.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="field" id="menuLimitField">
+            <span class="label" data-i18n="labelMaxMenuLanguages">Max menu languages</span>
+            <div class="range">
+              <input
+                type="range"
+                id="maxMenuLanguages"
+                name="maxMenuLanguages"
+                min="1"
+                max="12"
+                step="1"
+                aria-label="Maximum menu languages"
+                data-i18n-aria="ariaMaxMenuLanguages"
+              />
+              <span class="range-value" id="maxMenuLanguagesValue">6</span>
+            </div>
+            <p class="hint" data-i18n="hintMaxMenuLanguages">
+              Limit how many languages appear in the menu.
+            </p>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="sectionPreviewTitle">Preview and history</h2>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" id="previewEnabled" name="previewEnabled">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-body">
+              <span class="switch-title" data-i18n="labelPreviewEnabled">
+                Show a quick preview notification before opening
+              </span>
+              <span class="switch-desc" data-i18n="hintPreviewApi">
+                Preview uses the MyMemory API and can be disabled.
+              </span>
+            </span>
+          </label>
+
+          <div class="field" id="previewField">
+            <span class="label" data-i18n="labelPreviewTextLimit">Preview length (chars)</span>
+            <div class="range">
+              <input
+                type="range"
+                id="previewTextLimit"
+                name="previewTextLimit"
+                min="60"
+                max="500"
+                step="10"
+                aria-label="Preview length in characters"
+                data-i18n-aria="ariaPreviewTextLimit"
+              />
+              <span class="range-value" id="previewTextLimitValue">180</span>
+            </div>
+            <p class="hint" data-i18n="hintPreviewTextLimit">
+              Long selections skip preview requests.
+            </p>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" id="saveHistory" name="saveHistory">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-body">
+              <span class="switch-title" data-i18n="labelSaveHistory">
+                Keep translation history for quick access
+              </span>
+              <span class="switch-desc" data-i18n="hintHistoryPrivacy">
+                History stores language usage only, on this device.
+              </span>
+            </span>
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="labelTheme">Theme</h2>
+          </div>
           <div class="segmented" role="radiogroup" aria-label="Select theme" data-i18n-aria="ariaTheme">
             <label class="segment">
               <input type="radio" name="themeMode" value="auto">
@@ -138,101 +258,250 @@
               <span data-i18n="themeDark">Dark</span>
             </label>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <details class="advanced" id="advancedSettings">
-        <summary>
-          <span data-i18n="advancedTitle">Advanced settings</span>
-          <span class="summary-hint" data-i18n="advancedHint">Optional tweaks</span>
-        </summary>
-        <div class="advanced-body">
-          <div class="layout two-col">
-            <div class="field" id="menuLimitField">
-              <span class="label" data-i18n="labelMaxMenuLanguages">Max menu languages</span>
-              <div class="range">
-                <input
-                  type="range"
-                  id="maxMenuLanguages"
-                  name="maxMenuLanguages"
-                  min="1"
-                  max="12"
-                  step="1"
-                  aria-label="Maximum menu languages"
-                  data-i18n-aria="ariaMaxMenuLanguages"
-                />
-                <span class="range-value" id="maxMenuLanguagesValue">6</span>
-              </div>
-              <p class="hint" data-i18n="hintMaxMenuLanguages">
-                Limit how many languages appear in the menu.
-              </p>
-            </div>
-            <div class="field" id="previewField">
-              <span class="label" data-i18n="labelPreviewTextLimit">Preview length (chars)</span>
-              <div class="range">
-                <input
-                  type="range"
-                  id="previewTextLimit"
-                  name="previewTextLimit"
-                  min="60"
-                  max="500"
-                  step="10"
-                  aria-label="Preview length in characters"
-                  data-i18n-aria="ariaPreviewTextLimit"
-                />
-                <span class="range-value" id="previewTextLimitValue">180</span>
-              </div>
-              <p class="hint" data-i18n="hintPreviewTextLimit">
-                Long selections skip preview requests.
-              </p>
-            </div>
-          </div>
-        </div>
-      </details>
-
-      <label class="field checkbox">
-        <input type="checkbox" id="previewEnabled" name="previewEnabled">
-        <span data-i18n="labelPreviewEnabled">
-          Show quick preview notification (when available) before opening
-        </span>
-      </label>
-      <p class="hint note" data-i18n="hintPreviewApi">
-        Preview uses the MyMemory API and can be disabled.
-      </p>
-      <label class="field checkbox">
-        <input type="checkbox" id="saveHistory" name="saveHistory">
-        <span data-i18n="labelSaveHistory">Keep translation history for quick access</span>
-      </label>
-      <p class="hint note" data-i18n="hintHistoryPrivacy">
-        History stores language usage only.
-      </p>
-
-      <div class="history" id="historySection">
-        <div class="history-header">
-          <span class="label" data-i18n="historyTitle">History</span>
-          <button
-            type="button"
-            id="clearHistory"
-            class="ghost-button"
-            aria-label="Clear translation history"
-            data-i18n="buttonClearHistory"
-            data-i18n-aria="ariaClearHistory"
-          >
-            Clear history
+        <div class="card-footer-actions">
+          <button type="button" id="resetDefaults" class="ghost-button" data-i18n="buttonResetDefaults">
+            Reset to defaults
           </button>
         </div>
-        <p class="hint" data-i18n="historyHint">
-          Recent target language usage (from the last 20 translations).
-        </p>
-        <div id="historySummary" class="history-list"></div>
-      </div>
+      </section>
 
-      <details class="advanced" id="statisticsSection">
-        <summary>
-          <span data-i18n="statsTitle">Translation Statistics</span>
-          <span class="summary-hint" data-i18n="statsHint">Your usage insights</span>
-        </summary>
-        <div class="advanced-body">
+      <!-- ----------------------------- Languages ----------------------------- -->
+      <section
+        class="panel"
+        id="panel-languages"
+        role="tabpanel"
+        aria-labelledby="tab-languages"
+        data-panel="languages"
+        hidden
+      >
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="sectionPairTitle">Language pair</h2>
+            <p class="card-hint" data-i18n="sectionPairHint">
+              The first target language is used for shortcuts and one-click mode.
+            </p>
+          </div>
+
+          <div class="layout two-col">
+            <label class="field">
+              <span class="label" data-i18n="labelSourceLanguage">Source language</span>
+              <select
+                id="sourceLang"
+                name="sourceLang"
+                aria-label="Select source language"
+                data-i18n-aria="ariaSourceLanguage"
+              ></select>
+            </label>
+            <label class="field">
+              <span class="label" data-i18n="labelProvider">Provider</span>
+              <select id="provider" name="provider" aria-label="Select translation provider" data-i18n-aria="ariaProvider">
+                <option value="google" data-i18n="providerGoogle">Google Translate</option>
+                <option value="deepl" data-i18n="providerDeepL">DeepL</option>
+                <option value="bing" data-i18n="providerBing">Bing Translator</option>
+                <option value="yandex" data-i18n="providerYandex">Yandex Translate</option>
+                <option value="microsoft" data-i18n="providerMicrosoft">Microsoft Translator</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="labelAddTargetLanguage">Target languages</h2>
+            <p class="card-hint" data-i18n="hintTargetLanguages">
+              Maintain a quick list of languages; these show up in the context menu.
+            </p>
+          </div>
+
+          <div class="field">
+            <span class="label" data-i18n="labelAddFromList">Add from the list</span>
+            <div class="row">
+              <select
+                id="targetSelect"
+                name="targetSelect"
+                aria-label="Select target language to add"
+                data-i18n-aria="ariaTargetSelect"
+              ></select>
+              <button
+                type="button"
+                id="addTarget"
+                aria-label="Add selected language"
+                data-i18n="buttonAdd"
+                data-i18n-aria="ariaAddTarget"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="label" data-i18n="labelCustomLanguage">Custom language code</span>
+            <div class="row">
+              <input
+                type="text"
+                id="customLangCode"
+                placeholder="e.g., pt-BR, zh-TW"
+                aria-label="Custom language code input"
+                data-i18n-placeholder="placeholderCustomLanguage"
+                data-i18n-aria="ariaCustomLanguage"
+                autocomplete="off"
+              />
+              <button
+                type="button"
+                id="addCustomLang"
+                aria-label="Add custom language"
+                data-i18n="buttonAdd"
+                data-i18n-aria="ariaAddCustomLanguage"
+              >
+                Add
+              </button>
+            </div>
+            <p class="hint" data-i18n="hintCustomLanguage">
+              Enter custom language codes (e.g., pt-BR for Brazilian Portuguese, zh-TW for Traditional Chinese)
+            </p>
+          </div>
+
+          <div class="chips" id="targetsList"></div>
+          <p class="hint hint-primary" data-i18n="hintPrimaryLanguage">
+            Tip: The first language is used for quick actions and shortcuts.
+          </p>
+        </section>
+      </section>
+
+      <!-- ------------------------------- Notes ------------------------------- -->
+      <section
+        class="panel"
+        id="panel-notes"
+        role="tabpanel"
+        aria-labelledby="tab-notes"
+        data-panel="notes"
+        hidden
+      >
+        <section class="card" id="notesSection">
+          <div class="card-head notes-header">
+            <div>
+              <h2 data-i18n="notesTitle">Notes and bookmarks</h2>
+              <p class="card-hint" data-i18n="notesHint">
+                Save translations from the context menu or add them manually here.
+              </p>
+            </div>
+            <div class="notes-header-actions">
+              <input
+                type="search"
+                id="notesSearch"
+                aria-label="Search notes"
+                data-i18n-placeholder="notesSearchPlaceholder"
+                placeholder="Search notes"
+              />
+              <button
+                type="button"
+                id="exportNotes"
+                class="ghost-button small"
+                title="Export notes as JSON"
+                data-i18n-title="exportNotesTitle"
+              >
+                ⬇ <span data-i18n="buttonExport">Export</span>
+              </button>
+              <button
+                type="button"
+                id="importNotes"
+                class="ghost-button small"
+                title="Import notes from JSON"
+                data-i18n-title="importNotesTitle"
+              >
+                ⬆ <span data-i18n="buttonImport">Import</span>
+              </button>
+              <button
+                type="button"
+                id="clearNotes"
+                class="ghost-button small danger"
+                data-i18n="buttonClearNotes"
+              >
+                Clear notes
+              </button>
+            </div>
+          </div>
+
+          <input type="file" id="importFileInput" accept=".json,application/json" hidden />
+
+          <label class="switch">
+            <input type="checkbox" id="notesAutoTranslate" name="notesAutoTranslate">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-body">
+              <span class="switch-title" data-i18n="labelNotesAutoTranslate">
+                Auto-translate notes using MyMemory
+              </span>
+              <span class="switch-desc" data-i18n="hintNotesAutoTranslate">
+                Used when saving selections or when the translation field is empty.
+              </span>
+            </span>
+          </label>
+
+          <div class="note-form">
+            <label class="field">
+              <span class="label" data-i18n="labelNoteSource">Original text</span>
+              <textarea
+                id="noteSource"
+                rows="3"
+                aria-label="Original text"
+                data-i18n-placeholder="placeholderNoteSource"
+                placeholder="Paste a word or phrase"
+              ></textarea>
+            </label>
+            <label class="field">
+              <span class="label" data-i18n="labelNoteTranslation">Translation (optional)</span>
+              <textarea
+                id="noteTranslation"
+                rows="3"
+                aria-label="Translation"
+                data-i18n-placeholder="placeholderNoteTranslation"
+                placeholder="Add the translated text (optional)"
+              ></textarea>
+            </label>
+            <div class="layout two-col">
+              <label class="field">
+                <span class="label" data-i18n="labelNoteTargetLang">Target language</span>
+                <select id="noteTargetLang" name="noteTargetLang" aria-label="Target language"></select>
+              </label>
+              <label class="field">
+                <span class="label" data-i18n="labelNoteTag">Tag</span>
+                <input
+                  type="text"
+                  id="noteTag"
+                  aria-label="Tag"
+                  data-i18n-placeholder="placeholderNoteTag"
+                  placeholder="Work, travel, study"
+                />
+              </label>
+            </div>
+            <div class="row note-actions">
+              <button type="button" id="saveNote" data-i18n="buttonSaveNote">Save note</button>
+              <button type="button" id="clearNoteForm" class="ghost-button" data-i18n="buttonClearForm">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div id="notesList" class="notes-list"></div>
+        </section>
+      </section>
+
+      <!-- ------------------------------ Insights ----------------------------- -->
+      <section
+        class="panel"
+        id="panel-insights"
+        role="tabpanel"
+        aria-labelledby="tab-insights"
+        data-panel="insights"
+        hidden
+      >
+        <section class="card" id="statisticsSection">
+          <div class="card-head">
+            <h2 data-i18n="statsTitle">Translation statistics</h2>
+            <p class="card-hint" data-i18n="statsHint">Your usage insights</p>
+          </div>
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-value" id="totalTranslations">0</div>
@@ -251,120 +520,33 @@
               <div class="stat-label" data-i18n="statLabelLanguage">Most Used Language</div>
             </div>
           </div>
-        </div>
-      </details>
+        </section>
 
-      <section class="notes" id="notesSection">
-        <div class="notes-header">
-          <span class="label" data-i18n="notesTitle">Notes and bookmarks</span>
-          <div class="notes-header-actions">
-            <input
-              type="search"
-              id="notesSearch"
-              aria-label="Search notes"
-              data-i18n-placeholder="notesSearchPlaceholder"
-              placeholder="Search notes"
-            />
+        <section class="card" id="historySection">
+          <div class="card-head history-header">
+            <div>
+              <h2 data-i18n="historyTitle">History</h2>
+              <p class="card-hint" data-i18n="historyHint">
+                Recent target language usage (from the last 20 translations).
+              </p>
+            </div>
             <button
               type="button"
-              id="exportNotes"
-              class="ghost-button"
-              title="Export notes as JSON"
-              data-i18n-title="exportNotesTitle"
+              id="clearHistory"
+              class="ghost-button small danger"
+              aria-label="Clear translation history"
+              data-i18n="buttonClearHistory"
+              data-i18n-aria="ariaClearHistory"
             >
-              ⬇ Export
-            </button>
-            <button
-              type="button"
-              id="importNotes"
-              class="ghost-button"
-              title="Import notes from JSON"
-              data-i18n-title="importNotesTitle"
-            >
-              ⬆ Import
-            </button>
-            <button
-              type="button"
-              id="clearNotes"
-              class="ghost-button"
-              data-i18n="buttonClearNotes"
-            >
-              Clear notes
+              Clear history
             </button>
           </div>
-        </div>
-        <input type="file" id="importFileInput" accept=".json" style="display: none;" />
-        <p class="hint" data-i18n="notesHint">
-          Save translations from the context menu or add them manually here.
-        </p>
-        <label class="field checkbox">
-          <input type="checkbox" id="notesAutoTranslate" name="notesAutoTranslate">
-          <span data-i18n="labelNotesAutoTranslate">Auto-translate notes using MyMemory</span>
-        </label>
-        <p class="hint note" data-i18n="hintNotesAutoTranslate">
-          Used when saving selections or when the translation field is empty.
-        </p>
-
-        <div class="note-form">
-          <label class="field">
-            <span class="label" data-i18n="labelNoteSource">Original text</span>
-            <textarea
-              id="noteSource"
-              rows="3"
-              aria-label="Original text"
-              data-i18n-placeholder="placeholderNoteSource"
-              placeholder="Paste a word or phrase"
-            ></textarea>
-          </label>
-          <label class="field">
-            <span class="label" data-i18n="labelNoteTranslation">Translation (optional)</span>
-            <textarea
-              id="noteTranslation"
-              rows="3"
-              aria-label="Translation"
-              data-i18n-placeholder="placeholderNoteTranslation"
-              placeholder="Add the translated text (optional)"
-            ></textarea>
-          </label>
-          <div class="layout two-col">
-            <label class="field">
-              <span class="label" data-i18n="labelNoteTargetLang">Target language</span>
-              <select id="noteTargetLang" name="noteTargetLang" aria-label="Target language"></select>
-            </label>
-            <label class="field">
-              <span class="label" data-i18n="labelNoteTag">Tag</span>
-              <input
-                type="text"
-                id="noteTag"
-                aria-label="Tag"
-                data-i18n-placeholder="placeholderNoteTag"
-                placeholder="Work, travel, study"
-              />
-            </label>
-          </div>
-          <div class="row note-actions">
-            <button type="button" id="saveNote" data-i18n="buttonSaveNote">Save note</button>
-            <button type="button" id="clearNoteForm" class="ghost-button" data-i18n="buttonClearForm">
-              Clear
-            </button>
-          </div>
-        </div>
-
-        <div id="notesList" class="notes-list"></div>
+          <div id="historySummary" class="history-list"></div>
+        </section>
       </section>
+    </main>
+  </form>
 
-      <div class="actions">
-        <button type="submit" data-i18n="buttonSave">Save</button>
-        <button type="button" id="resetDefaults" class="ghost-button" data-i18n="buttonResetDefaults">
-          Reset to defaults
-        </button>
-        <span id="unsavedHint" class="unsaved" data-i18n="unsavedChanges">Unsaved changes</span>
-        <span id="status" role="status" aria-live="polite"></span>
-      </div>
-    </form>
-  </main>
-
-  <script src="vendor/eld.min.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

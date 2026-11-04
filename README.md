@@ -67,3 +67,5 @@ The ready-to-upload archive is created at `dist/xt1-translate-v<version>.zip`.
 ## License
 
 [MIT](LICENSE) © Hayk Jomardyan
+
+[Maintenance audit and validation notes](docs/AUDIT-2026-11-04.md) documents the reviewed scope, development commands, checks and remaining limits.

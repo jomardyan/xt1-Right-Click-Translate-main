@@ -35,7 +35,7 @@ jobs:
             vendor/
 
       - name: Upload ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xt1-translate-v${{ steps.version.outputs.version }}
           path: xt1-translate-v${{ steps.version.outputs.version }}.zip

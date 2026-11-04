@@ -71,3 +71,8 @@ The ready-to-upload archive is created at `dist/xt1-translate-v<version>.zip`.
 [Maintenance audit and validation notes](docs/AUDIT-2026-11-04.md) documents the reviewed scope, development commands, checks and remaining limits.
 
 `make install` installs locked test tools, `make test` runs Jest, and `make lint` checks production JavaScript syntax. `make build` validates the directly runnable source; `make dev` prints unpacked-extension loading instructions. `make package` creates the existing local ZIP and reads its version through Node (jq is no longer needed). ZIP packaging uses a POSIX shell and `zip`, available through Git Bash or on Linux/macOS.
+
+## Copyright
+
+Copyright (c) 2026 Hayk Jomardyan - Lolisoft.
+See COPYRIGHT.md for attribution and existing license notices.

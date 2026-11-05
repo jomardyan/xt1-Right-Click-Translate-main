@@ -35,7 +35,7 @@ $(call escape,$(PACKAGE_FILE)): build guard-dist FORCE $(PACKAGE_FILES)
 	@"$(NODE)" scripts/make-support.mjs mkdir "$(DIST_DIR)"
 	@"$(NODE)" scripts/make-support.mjs clean "$@"
 ifeq ($(OS),Windows_NT)
-	"$(TAR)" -a -c -f "$@" $(PACKAGE_FILES)
+	"$(TAR)" -a -c -f "$@" $(patsubst %/,%,$(PACKAGE_FILES))
 else
 	"$(ZIP)" -rq "$@" $(PACKAGE_FILES)
 endif

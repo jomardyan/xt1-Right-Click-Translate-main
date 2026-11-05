@@ -30,7 +30,7 @@ jobs:
       - name: Report complete dependency advisory inventory
         run: node "$GITHUB_WORKSPACE/.github/scripts/dependency-advisories.cjs"
       - name: Retain complete advisory inventory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-advisories-${{ strategy.job-index }}
           path: ${{ matrix.directory }}/dependency-advisories.json
